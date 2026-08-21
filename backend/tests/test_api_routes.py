@@ -103,3 +103,52 @@ def test_scan_endpoint_lambda_mode_rejects_oversized_target(monkeypatch):
 
     monkeypatch.setenv("RUNTIME_MODE", "local")
     get_settings.cache_clear()
+
+
+def test_local_db_storage():
+    from app.aws import local_db
+    from app.schemas.device import Device
+    from app.schemas.firewall_rule import FirewallRule
+    from app.schemas.cis_result import CisResult
+
+    test_scan_id = "test-scan-xyz"
+    dev = Device(
+        device_id="dev-1",
+        scan_id=test_scan_id,
+        ip_address="192.168.1.100",
+        discovered_at="2026-08-21T00:00:00Z",
+    )
+    local_db.put_device(dev)
+    devs = local_db.query_devices_by_scan(test_scan_id)
+    assert len(devs) == 1
+    assert devs[0]["device_id"] == "dev-1"
+
+    rule = FirewallRule(
+        rule_id="r-1",
+        scan_id=test_scan_id,
+        source="any",
+        destination="any",
+        protocol="ip",
+        action="deny",
+        direction="egress",
+        raw_line="deny ip any any",
+    )
+    local_db.put_firewall_rule(rule)
+    rules = local_db.query_firewall_rules_by_scan(test_scan_id)
+    assert len(rules) == 1
+    assert rules[0]["rule_id"] == "r-1"
+
+    cis = CisResult(
+        check_id="check_1",
+        scan_id=test_scan_id,
+        title="Check 1",
+        cis_reference="1.1",
+        status="PASS",
+        evidence="ok",
+    )
+    local_db.put_cis_result(cis)
+    cis_items = local_db.query_cis_results_by_scan(test_scan_id)
+    assert len(cis_items) == 1
+    assert cis_items[0]["check_id"] == "check_1"
+
+
