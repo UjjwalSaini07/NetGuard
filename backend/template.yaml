@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: NetGuard network posture scanner API
+
+Parameters:
+  NetGuardApiKey:
+    Type: String
+    NoEcho: true
+  LogLevel:
+    Type: String
+    Default: INFO
+  S3BucketRawResults:
+    Type: String
+    Default: ''
+
+Globals:
+  Function:
+    Timeout: 29
+    MemorySize: 512
+    Runtime: python3.11
+
+Resources:
+  NetGuardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.lambda_handler.handler
+      CodeUri: .
+      Environment:
+        Variables:
+          RUNTIME_MODE: lambda
+          NETGUARD_API_KEY: !Ref NetGuardApiKey
+          DYNAMODB_TABLE_DEVICES: !Ref DevicesTable
+          DYNAMODB_TABLE_FIREWALL_RULES: !Ref FirewallRulesTable
+          DYNAMODB_TABLE_CIS_RESULTS: !Ref CisResultsTable
+          SCAN_MAX_HOSTS_LAMBDA: 16
+          LOG_LEVEL: !Ref LogLevel
+          S3_BUCKET_RAW_RESULTS: !Ref S3BucketRawResults
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DevicesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FirewallRulesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CisResultsTable
+        - S3CrudPolicy:
+            BucketName: !If [HasS3Bucket, !Ref S3BucketRawResults, !Ref AWS::NoValue]
+      Events:
+        ProxyApi:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+  DevicesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: NetGuardDevices
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scan_id
+          AttributeType: S
+        - AttributeName: device_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scan_id
+          KeyType: HASH
+        - AttributeName: device_id
+          KeyType: RANGE
+
+  FirewallRulesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: NetGuardFirewallRules
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scan_id
+          AttributeType: S
+        - AttributeName: rule_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scan_id
+          KeyType: HASH
+        - AttributeName: rule_id
+          KeyType: RANGE
+
+  CisResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: NetGuardCisResults
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: scan_id
+          AttributeType: S
+        - AttributeName: check_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scan_id
+          KeyType: HASH
+        - AttributeName: check_id
+          KeyType: RANGE
+
+Conditions:
+  HasS3Bucket: !Not [!Equals [!Ref S3BucketRawResults, '']]
+
+Outputs:
+  ApiEndpoint:
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
