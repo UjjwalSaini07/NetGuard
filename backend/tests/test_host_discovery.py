@@ -1,0 +1,35 @@
+from app.scanners import host_discovery
+
+
+def test_expand_targets_cidr():
+    hosts = host_discovery.expand_targets("192.168.1.0/30")
+    assert hosts == ["192.168.1.1", "192.168.1.2"]
+
+
+def test_expand_targets_ip_list():
+    hosts = host_discovery.expand_targets("10.0.0.1, 10.0.0.2,10.0.0.3")
+    assert hosts == ["10.0.0.1", "10.0.0.2", "10.0.0.3"]
+
+
+def test_discover_hosts_empty_subnet_returns_empty(monkeypatch):
+    monkeypatch.setattr(host_discovery, "_tcp_probe_reachable", lambda ip, timeout: False)
+    monkeypatch.setattr(host_discovery, "_icmp_probe_reachable", lambda ip, timeout: False)
+    result = host_discovery.discover_hosts("192.168.55.0/30", timeout=0.1, max_threads=4, max_hosts=254)
+    assert result == []
+
+
+def test_discover_hosts_all_unreachable_no_exception(monkeypatch):
+    def boom(ip, timeout):
+        raise OSError("network unreachable")
+
+    monkeypatch.setattr(host_discovery, "_tcp_probe_reachable", boom)
+    monkeypatch.setattr(host_discovery, "_icmp_probe_reachable", lambda ip, timeout: False)
+    result = host_discovery.discover_hosts("192.168.60.0/29", timeout=0.1, max_threads=4, max_hosts=254)
+    assert result == []
+
+
+def test_discover_hosts_respects_max_hosts(monkeypatch):
+    monkeypatch.setattr(host_discovery, "_tcp_probe_reachable", lambda ip, timeout: True)
+    monkeypatch.setattr(host_discovery, "_resolve_hostname", lambda ip: None)
+    result = host_discovery.discover_hosts("192.168.1.0/24", timeout=0.1, max_threads=8, max_hosts=5)
+    assert len(result) <= 5
