@@ -48,7 +48,9 @@ OUI_VENDOR_MAP = {
 
 
 def _normalize_prefix(mac_address: str) -> str:
-    return ":".join(mac_address.upper().split(":")[:3])
+    cleaned = mac_address.upper().replace("-", ":")
+    parts = [p.zfill(2) for p in cleaned.split(":") if p]
+    return ":".join(parts[:3])
 
 
 def lookup_vendor(mac_address: str | None) -> str | None:
@@ -61,13 +63,15 @@ def lookup_vendor(mac_address: str | None) -> str | None:
 def _parse_arp_output(raw_output: str) -> dict[str, str]:
     mapping: dict[str, str] = {}
     ip_mac_pattern = re.compile(
-        r"\(?(\d{1,3}(?:\.\d{1,3}){3})\)?.*?((?:[0-9a-fA-F]{1,2}:){5}[0-9a-fA-F]{1,2})"
+        r"\(?(\d{1,3}(?:\.\d{1,3}){3})\)?\s+.*?((?:[0-9a-fA-F]{1,2}[:-]){5}[0-9a-fA-F]{1,2})"
     )
     for line in raw_output.splitlines():
         match = ip_mac_pattern.search(line)
         if match:
-            ip_address, mac_address = match.group(1), match.group(2)
-            mapping[ip_address] = mac_address.upper()
+            ip_address, raw_mac = match.group(1), match.group(2)
+            parts = [p.zfill(2).upper() for p in raw_mac.replace("-", ":").split(":")]
+            normalized_mac = ":".join(parts)
+            mapping[ip_address] = normalized_mac
     return mapping
 
 

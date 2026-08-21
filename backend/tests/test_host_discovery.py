@@ -33,3 +33,20 @@ def test_discover_hosts_respects_max_hosts(monkeypatch):
     monkeypatch.setattr(host_discovery, "_resolve_hostname", lambda ip: None)
     result = host_discovery.discover_hosts("192.168.1.0/24", timeout=0.1, max_threads=8, max_hosts=5)
     assert len(result) <= 5
+
+
+def test_parse_arp_output_unix():
+    from app.scanners.mac_vendor import _parse_arp_output, lookup_vendor
+    sample_unix = "? (192.168.1.1) at 00:1a:2b:3c:4d:5e [ether] on eth0"
+    parsed = _parse_arp_output(sample_unix)
+    assert parsed.get("192.168.1.1") == "00:1A:2B:3C:4D:5E"
+    assert lookup_vendor(parsed.get("192.168.1.1")) == "Cisco Systems"
+
+
+def test_parse_arp_output_windows():
+    from app.scanners.mac_vendor import _parse_arp_output, lookup_vendor
+    sample_win = "  192.168.1.1           00-1a-2b-3c-4d-5e     dynamic"
+    parsed = _parse_arp_output(sample_win)
+    assert parsed.get("192.168.1.1") == "00:1A:2B:3C:4D:5E"
+    assert lookup_vendor(parsed.get("192.168.1.1")) == "Cisco Systems"
+
