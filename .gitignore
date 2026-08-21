@@ -1,11 +1,16 @@
+﻿# Python
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.class
+*.db
 .venv/
-venv/
+env/
+
+# Node
 node_modules/
 dist/
-.aws-sam/
-*.egg-info/
-.pytest_cache/
-.DS_Store
+dist-ssr/
+*.local
+
+# Env
+.env
