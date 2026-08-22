@@ -11,7 +11,8 @@ import {
   HiShieldCheck,
   HiArrowRight,
   HiArrowPath,
-  HiClock
+  HiClock,
+  HiExclamationTriangle
 } from 'react-icons/hi2'
 import { FiRadio } from 'react-icons/fi'
 import client from '../../api/client.js'
@@ -27,22 +28,62 @@ function isValidIpv4(ip) {
   })
 }
 
-function isValidTarget(targetStr) {
+function getTargetDetails(targetStr) {
   const trimmed = targetStr.trim()
-  if (!trimmed) return false
+  if (!trimmed) return null
 
   if (trimmed.includes('/')) {
     const [ip, prefix, ...rest] = trimmed.split('/')
-    if (rest.length > 0 || !isValidIpv4(ip)) return false
-    if (!/^\d{1,2}$/.test(prefix)) return false
+    if (rest.length > 0 || !isValidIpv4(ip)) {
+      return { valid: false, error: 'Invalid IPv4 address base in CIDR notation.' }
+    }
+    if (!/^\d{1,2}$/.test(prefix)) {
+      return { valid: false, error: 'Invalid CIDR prefix length.' }
+    }
     const mask = Number(prefix)
-    return Number.isInteger(mask) && mask >= 0 && mask <= 32
+    if (mask < 0 || mask > 32) {
+      return { valid: false, error: 'CIDR prefix must be between /0 and /32.' }
+    }
+    if (mask < 24) {
+      const count = Math.pow(2, 32 - mask)
+      return {
+        valid: false,
+        error: `Subnet /${mask} expands to ${count.toLocaleString()} hosts. Subnets are limited to /24 (max 256 hosts) to prevent scan timeouts and memory exhaustion.`
+      }
+    }
+    const hostCount = Math.pow(2, 32 - mask)
+    return {
+      valid: true,
+      isSubnet: mask < 32,
+      hostCount,
+      warning: mask <= 26
+        ? `Wide subnet sweep (/${mask}, ~${hostCount} addresses). Active network discovery and port auditing will take ~25–40s. For instant scans, use a specific IP (e.g. 192.168.1.1 or 127.0.0.1).`
+        : null
+    }
   }
 
   const items = trimmed.split(',').map((s) => s.trim()).filter(Boolean)
-  if (items.length === 0) return false
-  return items.every(isValidIpv4)
+  if (items.length === 0) return { valid: false, error: 'Target list cannot be empty.' }
+  const allValid = items.every(isValidIpv4)
+  if (!allValid) {
+    return { valid: false, error: 'One or more comma-separated IP addresses are invalid (must be 0-255.0-255.0-255.0-255).' }
+  }
+  if (items.length > 64) {
+    return { valid: false, error: `Target list contains ${items.length} hosts. Maximum is 64 comma-separated hosts per sweep.` }
+  }
+  return {
+    valid: true,
+    isSubnet: false,
+    hostCount: items.length,
+    warning: items.length > 8 ? `Auditing ${items.length} individual hosts will take ~15–25 seconds.` : null
+  }
 }
+
+function isValidTarget(targetStr) {
+  const details = getTargetDetails(targetStr)
+  return Boolean(details && details.valid)
+}
+
 
 const PRESETS = [
   { label: 'Localhost', target: '127.0.0.1', icon: HiComputerDesktop, est: '~2-4s' },
@@ -79,16 +120,18 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
     return () => clearInterval(timer)
   }, [submitting])
 
+  const targetDetails = getTargetDetails(target)
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setValidationError(null)
     setApiError(null)
 
-    if (!isValidTarget(target)) {
-      setValidationError('Please enter a valid CIDR notation (e.g. 192.168.1.0/24) or comma-separated IPv4 list (e.g. 127.0.0.1, 192.168.1.1).')
+    const details = getTargetDetails(target)
+    if (!details || !details.valid) {
+      setValidationError(details?.error || 'Please enter a valid CIDR notation (/24 to /32) or comma-separated IPv4 list.')
       return
     }
-
 
     setSubmitting(true)
     try {
@@ -104,6 +147,7 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
       setSubmitting(false)
     }
   }
+
 
   const isCidr24 = target.includes('/24')
   const estTotalTime = isCidr24 ? 35 : 6
@@ -345,13 +389,27 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
                 <input
                   type="text"
                   value={target}
-                  onChange={(event) => setTarget(event.target.value)}
+                  onChange={(event) => {
+                    setTarget(event.target.value)
+                    if (validationError) setValidationError(null)
+                  }}
                   placeholder="e.g. 192.168.1.0/24 or 127.0.0.1"
                   className="mono w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
                   autoFocus
                 />
               </div>
+
+              {targetDetails?.warning && (
+                <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900">
+                  <HiExclamationTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    <strong className="font-semibold block mb-0.5 text-amber-950">Subnet Scope Notice</strong>
+                    {targetDetails.warning}
+                  </div>
+                </div>
+              )}
             </div>
+
 
             <div>
               <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">

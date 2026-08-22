@@ -16,9 +16,14 @@ class ScanRequest(BaseModel):
         cleaned = value.strip()
         if "/" in cleaned:
             try:
-                ipaddress.ip_network(cleaned, strict=False)
+                network = ipaddress.ip_network(cleaned, strict=False)
+                if network.prefixlen < 24:
+                    raise ValueError(
+                        f"subnet prefix /{network.prefixlen} is too wide ({network.num_addresses:,} hosts). "
+                        f"Subnets must be /24 or narrower (e.g. /24 to /32, max 256 hosts) to prevent network and memory exhaustion."
+                    )
             except ValueError as exc:
-                raise ValueError(f"invalid CIDR target: {cleaned}") from exc
+                raise ValueError(f"invalid CIDR target: {cleaned} - {exc}") from exc
         else:
             parts = [part.strip() for part in cleaned.split(",") if part.strip()]
             if not parts:
@@ -29,6 +34,7 @@ class ScanRequest(BaseModel):
                 except ValueError as exc:
                     raise ValueError(f"invalid IP address in target: {part}") from exc
         return cleaned
+
 
 
     @field_validator("firewall_config_path")

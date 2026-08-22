@@ -208,19 +208,20 @@ def test_devices_pagination_with_next_token():
 
 def test_devices_endpoint_scopes_to_latest_scan_when_no_scan_id():
     import uuid
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
     from app.aws import local_db
     from app.schemas.device import Device
 
-    base_time = datetime.now(timezone.utc)
-    ts_old = (base_time + timedelta(days=200)).isoformat()
-    ts_new = (base_time + timedelta(days=201)).isoformat()
+    with local_db._get_connection() as conn:
+        conn.execute("DELETE FROM scans")
+
+    ts_now = datetime.now(timezone.utc).isoformat()
     scan_old = f"scan-old-{uuid.uuid4().hex[:6]}"
     scan_new = f"scan-new-{uuid.uuid4().hex[:6]}"
 
     local_db.put_scan_metadata(
         scan_id=scan_new,
-        created_at=ts_new,
+        created_at=ts_now,
         target="10.0.0.2",
         status="COMPLETED",
     )
@@ -228,13 +229,13 @@ def test_devices_endpoint_scopes_to_latest_scan_when_no_scan_id():
         device_id="dev-old",
         scan_id=scan_old,
         ip_address="10.0.0.1",
-        discovered_at=ts_old,
+        discovered_at="2026-08-20T00:00:00Z",
     )
     dev_new = Device(
         device_id="dev-new",
         scan_id=scan_new,
         ip_address="10.0.0.2",
-        discovered_at=ts_new,
+        discovered_at=ts_now,
     )
     local_db.put_device(dev_old)
     local_db.put_device(dev_new)
@@ -244,6 +245,7 @@ def test_devices_endpoint_scopes_to_latest_scan_when_no_scan_id():
     data = response.json()
     assert len(data["items"]) >= 1
     assert all(item["scan_id"] == scan_new for item in data["items"])
+
 
 
 def test_cis_results_endpoint_returns_next_token_when_more_pages_exist():
@@ -292,9 +294,12 @@ def test_scan_metadata_indexing_and_latest_scan_resolution():
     from datetime import datetime, timezone, timedelta
     from app.aws import dynamo_client, local_db
 
+    with local_db._get_connection() as conn:
+        conn.execute("DELETE FROM scans")
+
     base_time = datetime.now(timezone.utc)
-    ts1 = (base_time + timedelta(days=300)).isoformat()
-    ts2 = (base_time + timedelta(days=301)).isoformat()
+    ts1 = (base_time - timedelta(minutes=10)).isoformat()
+    ts2 = base_time.isoformat()
     scan1 = f"scan-meta-1-{uuid.uuid4().hex[:6]}"
     scan2 = f"scan-meta-2-{uuid.uuid4().hex[:6]}"
 
@@ -313,6 +318,7 @@ def test_scan_metadata_indexing_and_latest_scan_resolution():
 
     resolved = dynamo_client.get_latest_scan_id()
     assert resolved == scan2
+
 
 
 

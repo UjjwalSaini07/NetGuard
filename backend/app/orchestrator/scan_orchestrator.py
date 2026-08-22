@@ -20,11 +20,26 @@ class TargetTooLargeError(ValueError):
 
 
 def validate_target_size(target: str, max_hosts: int) -> None:
+    target = target.strip()
+    if "/" in target:
+        try:
+            import ipaddress
+            network = ipaddress.ip_network(target, strict=False)
+            if network.num_addresses > max_hosts + 2:
+                raise TargetTooLargeError(
+                    f"target subnet expands to {network.num_addresses:,} addresses, exceeding the maximum allowed size of {max_hosts} hosts (must be /24 or narrower)"
+                )
+        except ValueError as exc:
+            if isinstance(exc, TargetTooLargeError):
+                raise
+            raise ValueError(f"invalid CIDR target: {target}") from exc
+
     candidates = expand_targets(target)
     if len(candidates) > max_hosts:
         raise TargetTooLargeError(
             f"target expands to {len(candidates)} hosts, exceeding the max of {max_hosts}"
         )
+
 
 
 def _build_devices(scan_id: str, target: str, settings) -> list[Device]:
