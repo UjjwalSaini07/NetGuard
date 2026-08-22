@@ -229,5 +229,47 @@ def test_devices_endpoint_scopes_to_latest_scan_when_no_scan_id():
     assert all(item["scan_id"] == "scan-new-222" for item in data["items"])
 
 
+def test_cis_results_endpoint_returns_next_token_when_more_pages_exist():
+    from app.aws import local_db
+    from app.schemas.cis_result import CisResult
+
+    test_scan = "scan-cis-pagination-test"
+    for i in range(5):
+        cis = CisResult(
+            check_id=f"check_p_{i}",
+            scan_id=test_scan,
+            title=f"Check {i}",
+            cis_reference=f"1.{i}",
+            status="PASS" if i % 2 == 0 else "FAIL",
+            evidence="ok",
+        )
+        local_db.put_cis_result(cis)
+
+    resp1 = client.get(f"/cis-results?scan_id={test_scan}&limit=2", headers={"x-api-key": API_KEY})
+    assert resp1.status_code == 200
+    data1 = resp1.json()
+    assert len(data1["items"]) == 2
+    assert data1["next_token"] is not None
+
+    resp2 = client.get(
+        f"/cis-results?scan_id={test_scan}&limit=2&next_token={data1['next_token']}",
+        headers={"x-api-key": API_KEY},
+    )
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert len(data2["items"]) == 2
+    assert data2["next_token"] is not None
+
+    resp3 = client.get(
+        f"/cis-results?scan_id={test_scan}&limit=2&next_token={data2['next_token']}",
+        headers={"x-api-key": API_KEY},
+    )
+    assert resp3.status_code == 200
+    data3 = resp3.json()
+    assert len(data3["items"]) == 1
+    assert data3["next_token"] is None
+
+
+
 
 
