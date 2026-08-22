@@ -6,22 +6,22 @@ import DashboardPage from './pages/DashboardPage.jsx'
 import DevicesPage from './pages/DevicesPage.jsx'
 import FirewallRulesPage from './pages/FirewallRulesPage.jsx'
 import CisResultsPage from './pages/CisResultsPage.jsx'
+import { ScanDataProvider, useScanData } from './context/ScanDataContext.jsx'
 
-export default function App() {
-  const [lastScanTimestamp, setLastScanTimestamp] = useState(null)
-  const [refreshKey, setRefreshKey] = useState(0)
-
-  const handleScanComplete = (result) => {
-    setLastScanTimestamp(result.timestamp)
-    setRefreshKey((key) => key + 1)
-  }
+function MainLayout() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const { lastScanTimestamp, applyScanResult } = useScanData()
 
   return (
-    <div className="flex min-h-screen bg-surface">
-      <Sidebar />
-      <div className="flex-1">
-        <Topbar lastScanTimestamp={lastScanTimestamp} onScanComplete={handleScanComplete} />
-        <main key={refreshKey}>
+    <div className="flex min-h-screen bg-white text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
+      <Sidebar mobileOpen={mobileNavOpen} onCloseMobile={() => setMobileNavOpen(false)} />
+      <div className="flex-1 flex flex-col min-w-0 bg-white">
+        <Topbar
+          lastScanTimestamp={lastScanTimestamp}
+          onScanComplete={applyScanResult}
+          onToggleMobile={() => setMobileNavOpen((prev) => !prev)}
+        />
+        <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/devices" element={<DevicesPage />} />
@@ -33,3 +33,13 @@ export default function App() {
     </div>
   )
 }
+
+export default function App() {
+  return (
+    <ScanDataProvider>
+      <MainLayout />
+    </ScanDataProvider>
+  )
+}
+
+
