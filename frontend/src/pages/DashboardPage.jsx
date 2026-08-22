@@ -66,7 +66,11 @@ export default function DashboardPage() {
                   {complianceScore}%
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  {complianceScore >= 80 ? (
+                  {totalChecks === 0 ? (
+                    <span className="text-slate-500 font-semibold flex items-center gap-1">
+                      <HiShieldCheck className="h-4 w-4 inline text-slate-400" /> Pending Audit
+                    </span>
+                  ) : complianceScore >= 80 ? (
                     <span className="text-emerald-700 font-semibold flex items-center gap-1">
                       <HiCheckCircle className="h-4 w-4 inline text-emerald-600" /> Hardened
                     </span>
@@ -86,13 +90,15 @@ export default function DashboardPage() {
                 <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100 border border-slate-200">
                   <div
                     className={`h-full transition-all duration-1000 ${
-                      complianceScore >= 80
+                      totalChecks === 0
+                        ? 'bg-slate-200'
+                        : complianceScore >= 80
                         ? 'bg-emerald-500'
                         : complianceScore > 0
                         ? 'bg-amber-500'
                         : 'bg-rose-500'
                     }`}
-                    style={{ width: `${Math.max(5, complianceScore)}%` }}
+                    style={{ width: `${totalChecks === 0 ? 0 : Math.max(5, complianceScore)}%` }}
                   />
                 </div>
                 <div className="mt-1.5 flex justify-between text-[11px] text-slate-500 font-medium mono">
@@ -102,6 +108,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
 
           <div className="mt-6 border-t border-slate-100 pt-4">
             <Link
