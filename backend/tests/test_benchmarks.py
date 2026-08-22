@@ -163,6 +163,18 @@ def test_all_checks_fail_against_bundled_insecure_sample_config():
     assert summary["failed"] >= 6
 
 
+def test_all_checks_pass_against_bundled_hardened_config():
+    from app.benchmarks.engine import run_all_checks
+
+    rules = parser.parse_firewall_config("hardened")
+    context = parser.parse_firewall_context("hardened")
+    results, summary = run_all_checks([], rules, context, "hardened-scan")
+    assert summary["total"] == 8
+    assert summary["passed"] == 8
+    assert summary["failed"] == 0
+
+
+
 def test_egress_default_deny_fails_when_permit_all_before_deny_all():
     rule_permit = _rule(direction="egress", action="permit", source="any", destination="any", protocol="ip", sequence=10, raw_line="permit ip any any")
     rule_deny = _rule(direction="egress", action="deny", source="any", destination="any", protocol="ip", sequence=20, raw_line="deny ip any any")
