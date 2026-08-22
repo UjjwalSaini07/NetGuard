@@ -14,14 +14,14 @@ export function ScanDataProvider({ children }) {
 
   const [health, setHealth] = useState({
     isOnline: false,
+    dynamodb: 'checking',
+    runtimeMode: 'local',
     latency: null,
     checking: true,
     lastChecked: null
   })
 
-  const healthMode = import.meta.env.VITE_HEALTH_MODE || 'DevMode'
-  const isDevMode = healthMode === 'DevMode'
-  const pollInterval = isDevMode ? 10000 : 60000
+  const safePollInterval = 300000
 
   const checkHealth = useCallback(async () => {
     const start = performance.now()
@@ -30,24 +30,30 @@ export function ScanDataProvider({ children }) {
       if (response.data && response.data.status === 'ok') {
         setHealth({
           isOnline: true,
+          dynamodb: response.data.dynamodb || 'ok',
+          runtimeMode: response.data.runtime_mode || 'local',
           latency: Math.round(performance.now() - start),
           checking: false,
-          lastChecked: new Date()
+          lastChecked: Date.now()
         })
       } else {
         setHealth({
           isOnline: false,
+          dynamodb: 'error',
+          runtimeMode: 'unknown',
           latency: null,
           checking: false,
-          lastChecked: new Date()
+          lastChecked: Date.now()
         })
       }
     } catch {
       setHealth({
         isOnline: false,
+        dynamodb: 'error',
+        runtimeMode: 'unknown',
         latency: null,
         checking: false,
-        lastChecked: new Date()
+        lastChecked: Date.now()
       })
     }
   }, [])
@@ -56,22 +62,23 @@ export function ScanDataProvider({ children }) {
     let timerId
 
     const runProbe = () => {
-      if (document.visibilityState === 'hidden' && !isDevMode) {
+      if (document.visibilityState === 'hidden') {
         return
       }
       checkHealth()
     }
 
     runProbe()
-    timerId = setInterval(runProbe, pollInterval)
+    timerId = setInterval(runProbe, safePollInterval)
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        runProbe()
-        clearInterval(timerId)
-        timerId = setInterval(runProbe, pollInterval)
-      } else if (!isDevMode) {
-        clearInterval(timerId)
+        const elapsed = health.lastChecked ? Date.now() - health.lastChecked : Infinity
+        if (elapsed > 120000) {
+          runProbe()
+          clearInterval(timerId)
+          timerId = setInterval(runProbe, safePollInterval)
+        }
       }
     }
 
@@ -81,7 +88,8 @@ export function ScanDataProvider({ children }) {
       clearInterval(timerId)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [checkHealth, isDevMode, pollInterval])
+  }, [checkHealth, health.lastChecked, safePollInterval])
+
 
   const fetchAll = useCallback(async () => {
     setLoading(true)

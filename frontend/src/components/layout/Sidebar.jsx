@@ -16,7 +16,8 @@ const links = [
 ]
 
 export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }) {
-  const { isOnline, checking } = useHealthCheck()
+  const { isOnline, dynamodb, runtimeMode, checking } = useHealthCheck()
+  const isDbReady = isOnline && dynamodb === 'ok'
 
   return (
     <>
@@ -105,7 +106,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }
                   <span className="h-2 w-2 rounded-full bg-slate-400 animate-pulse" />
                   Connecting
                 </span>
-              ) : isOnline ? (
+              ) : isDbReady ? (
                 <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                   Live
@@ -118,13 +119,14 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }
               )}
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 mono">
-              <span>Region: us-east-1</span>
-              <span className={isOnline ? 'text-slate-700 font-semibold' : 'text-rose-600 font-semibold'}>
-                {checking ? 'Probing...' : isOnline ? 'Ready' : 'Disconnected'}
+              <span>{runtimeMode === 'lambda' ? 'AWS Cloud' : 'Local / Demo'}</span>
+              <span className={isDbReady ? 'text-slate-700 font-semibold' : 'text-rose-600 font-semibold'}>
+                {checking ? 'Probing...' : isDbReady ? 'Ready' : 'Disconnected'}
               </span>
             </div>
           </div>
         </div>
+
       </aside>
     </>
   )
