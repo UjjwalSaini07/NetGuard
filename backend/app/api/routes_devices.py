@@ -18,30 +18,30 @@ def list_devices(
     try:
         if scan_id:
             items = dynamo_client.query_devices_by_scan(scan_id)
+            items.sort(key=lambda x: x.get("discovered_at") or x.get("timestamp") or "", reverse=True)
             return {"items": items, "next_token": None}
 
         exclusive_start_key = {"scan_id": next_token} if next_token else None
         response = dynamo_client.scan_all_devices(limit, exclusive_start_key)
         raw_items = response.get("Items", [])
         raw_items.sort(key=lambda x: x.get("discovered_at") or x.get("timestamp") or "", reverse=True)
-        deduped = {}
-        items_without_ip = []
-        for item in raw_items:
-            ip = item.get("ip_address")
-            if ip:
-                if ip not in deduped:
-                    deduped[ip] = item
-            else:
-                items_without_ip.append(item)
-        items = list(deduped.values()) + items_without_ip
+
+        target_scan_id = raw_items[0].get("scan_id") if raw_items and raw_items[0].get("scan_id") else None
+        if target_scan_id:
+            items = [item for item in raw_items if item.get("scan_id") == target_scan_id]
+        else:
+            items = raw_items[:limit]
+
         last_key = response.get("LastEvaluatedKey")
         return {
             "items": items,
             "next_token": last_key.get("scan_id") if last_key else None,
         }
-
     except (BotoCoreError, ClientError) as exc:
         logger.error(f"dynamodb error listing devices: {exc}")
         raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": str(exc)}) from exc
+
+
+
 
 

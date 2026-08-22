@@ -123,3 +123,16 @@ def scan_all_cis_results(limit: int, exclusive_start_key: dict | None = None) ->
         items = [json.loads(row["item_json"]) for row in cursor.fetchall()]
         return {"Items": items, "LastEvaluatedKey": None}
 
+
+def get_latest_scan_id() -> str | None:
+    init_db()
+    with _get_connection() as conn:
+        cursor = conn.execute("SELECT scan_id FROM devices ORDER BY rowid DESC LIMIT 1")
+        row = cursor.fetchone()
+        if row:
+            return row["scan_id"]
+        cursor = conn.execute("SELECT scan_id FROM cis_results ORDER BY rowid DESC LIMIT 1")
+        row = cursor.fetchone()
+        return row["scan_id"] if row else None
+
+
