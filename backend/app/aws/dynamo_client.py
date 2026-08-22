@@ -47,14 +47,8 @@ def check_health() -> str:
 def put_device(device: Device) -> None:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_devices)
-            table.put_item(Item=device.model_dump(mode="json"))
-            return
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, saving to local SQLite store: {exc}")
-            local_db.put_device(device)
-            return
+        local_db.put_device(device)
+        return
 
     table = _resource().Table(settings.dynamodb_table_devices)
     table.put_item(Item=device.model_dump(mode="json"))
@@ -63,14 +57,8 @@ def put_device(device: Device) -> None:
 def put_firewall_rule(rule: FirewallRule) -> None:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_firewall_rules)
-            table.put_item(Item=rule.model_dump(mode="json"))
-            return
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, saving to local SQLite store: {exc}")
-            local_db.put_firewall_rule(rule)
-            return
+        local_db.put_firewall_rule(rule)
+        return
 
     table = _resource().Table(settings.dynamodb_table_firewall_rules)
     table.put_item(Item=rule.model_dump(mode="json"))
@@ -79,14 +67,8 @@ def put_firewall_rule(rule: FirewallRule) -> None:
 def put_cis_result(result: CisResult) -> None:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_cis_results)
-            table.put_item(Item=result.model_dump(mode="json"))
-            return
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, saving to local SQLite store: {exc}")
-            local_db.put_cis_result(result)
-            return
+        local_db.put_cis_result(result)
+        return
 
     table = _resource().Table(settings.dynamodb_table_cis_results)
     table.put_item(Item=result.model_dump(mode="json"))
@@ -95,13 +77,7 @@ def put_cis_result(result: CisResult) -> None:
 def query_devices_by_scan(scan_id: str) -> list[dict]:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_devices)
-            response = table.query(KeyConditionExpression=Key("scan_id").eq(scan_id))
-            return response.get("Items", [])
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, querying local SQLite store: {exc}")
-            return local_db.query_devices_by_scan(scan_id)
+        return local_db.query_devices_by_scan(scan_id)
 
     table = _resource().Table(settings.dynamodb_table_devices)
     response = table.query(KeyConditionExpression=Key("scan_id").eq(scan_id))
@@ -111,13 +87,7 @@ def query_devices_by_scan(scan_id: str) -> list[dict]:
 def query_firewall_rules_by_scan(scan_id: str) -> list[dict]:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_firewall_rules)
-            response = table.query(KeyConditionExpression=Key("scan_id").eq(scan_id))
-            return response.get("Items", [])
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, querying local SQLite store: {exc}")
-            return local_db.query_firewall_rules_by_scan(scan_id)
+        return local_db.query_firewall_rules_by_scan(scan_id)
 
     table = _resource().Table(settings.dynamodb_table_firewall_rules)
     response = table.query(KeyConditionExpression=Key("scan_id").eq(scan_id))
@@ -127,13 +97,7 @@ def query_firewall_rules_by_scan(scan_id: str) -> list[dict]:
 def query_cis_results_by_scan(scan_id: str) -> list[dict]:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_cis_results)
-            response = table.query(KeyConditionExpression=Key("scan_id").eq(scan_id))
-            return response.get("Items", [])
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, querying local SQLite store: {exc}")
-            return local_db.query_cis_results_by_scan(scan_id)
+        return local_db.query_cis_results_by_scan(scan_id)
 
     table = _resource().Table(settings.dynamodb_table_cis_results)
     response = table.query(KeyConditionExpression=Key("scan_id").eq(scan_id))
@@ -143,19 +107,7 @@ def query_cis_results_by_scan(scan_id: str) -> list[dict]:
 def scan_all_devices(limit: int = 100, exclusive_start_key: dict | None = None) -> dict:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_devices)
-            kwargs = {"Limit": limit}
-            if exclusive_start_key:
-                kwargs["ExclusiveStartKey"] = exclusive_start_key
-            response = table.scan(**kwargs)
-            return {
-                "Items": response.get("Items", []),
-                "LastEvaluatedKey": response.get("LastEvaluatedKey"),
-            }
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, scanning local SQLite store: {exc}")
-            return local_db.scan_all_devices(limit, exclusive_start_key)
+        return local_db.scan_all_devices(limit, exclusive_start_key)
 
     table = _resource().Table(settings.dynamodb_table_devices)
     kwargs = {"Limit": limit}
@@ -171,19 +123,7 @@ def scan_all_devices(limit: int = 100, exclusive_start_key: dict | None = None) 
 def scan_all_firewall_rules(limit: int = 100, exclusive_start_key: dict | None = None) -> dict:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_firewall_rules)
-            kwargs = {"Limit": limit}
-            if exclusive_start_key:
-                kwargs["ExclusiveStartKey"] = exclusive_start_key
-            response = table.scan(**kwargs)
-            return {
-                "Items": response.get("Items", []),
-                "LastEvaluatedKey": response.get("LastEvaluatedKey"),
-            }
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, scanning local SQLite store: {exc}")
-            return local_db.scan_all_firewall_rules(limit, exclusive_start_key)
+        return local_db.scan_all_firewall_rules(limit, exclusive_start_key)
 
     table = _resource().Table(settings.dynamodb_table_firewall_rules)
     kwargs = {"Limit": limit}
@@ -199,19 +139,7 @@ def scan_all_firewall_rules(limit: int = 100, exclusive_start_key: dict | None =
 def scan_all_cis_results(limit: int = 100, exclusive_start_key: dict | None = None) -> dict:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_cis_results)
-            kwargs = {"Limit": limit}
-            if exclusive_start_key:
-                kwargs["ExclusiveStartKey"] = exclusive_start_key
-            response = table.scan(**kwargs)
-            return {
-                "Items": response.get("Items", []),
-                "LastEvaluatedKey": response.get("LastEvaluatedKey"),
-            }
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, scanning local SQLite store: {exc}")
-            return local_db.scan_all_cis_results(limit, exclusive_start_key)
+        return local_db.scan_all_cis_results(limit, exclusive_start_key)
 
     table = _resource().Table(settings.dynamodb_table_cis_results)
     kwargs = {"Limit": limit}
@@ -224,10 +152,12 @@ def scan_all_cis_results(limit: int = 100, exclusive_start_key: dict | None = No
     }
 
 
-
-
 def put_scan_metadata(scan_id: str, created_at: str, target: str, status: str, summary: dict | None = None) -> None:
     settings = get_settings()
+    if _is_local_mode():
+        local_db.put_scan_metadata(scan_id, created_at, target, status, summary)
+        return
+
     item = {
         "entity_type": "SCAN",
         "created_at": created_at,
@@ -236,18 +166,9 @@ def put_scan_metadata(scan_id: str, created_at: str, target: str, status: str, s
         "status": status,
         "summary": summary or {},
     }
-    if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_scans)
-            table.put_item(Item=item)
-            return
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, saving scan metadata to local SQLite: {exc}")
-            local_db.put_scan_metadata(scan_id, created_at, target, status, summary)
-            return
-
     table = _resource().Table(settings.dynamodb_table_scans)
     table.put_item(Item=item)
+
 
 
 def get_latest_scan_id() -> str | None:
