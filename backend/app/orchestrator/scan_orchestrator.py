@@ -81,23 +81,35 @@ def run_scan(scan_request: ScanRequest, max_hosts: int) -> dict:
 
     cis_results, summary = run_all_checks(devices, firewall_rules, firewall_context, scan_id)
 
+    db_success = True
     for device in devices:
         try:
             dynamo_client.put_device(device)
         except Exception as exc:
+            db_success = False
             logger.error(f"failed to persist device {device.device_id}: {exc}")
 
     for rule in firewall_rules:
         try:
             dynamo_client.put_firewall_rule(rule)
         except Exception as exc:
+            db_success = False
             logger.error(f"failed to persist firewall rule {rule.rule_id}: {exc}")
 
     for result in cis_results:
         try:
             dynamo_client.put_cis_result(result)
         except Exception as exc:
+            db_success = False
             logger.error(f"failed to persist cis result {result.check_id}: {exc}")
+
+    is_local = settings.runtime_mode == "local"
+    persistence = {
+        "engine": "sqlite" if is_local else "dynamodb",
+        "status": "local" if (is_local and db_success) else "synced" if db_success else "failed",
+        "details": "Local SQLite Database" if is_local else f"AWS DynamoDB ({settings.aws_region})",
+        "s3": "skipped" if is_local else "failed",
+    }
 
     payload = {
         "scan_id": scan_id,
@@ -106,11 +118,14 @@ def run_scan(scan_request: ScanRequest, max_hosts: int) -> dict:
         "firewall_rules": [rule.model_dump(mode="json") for rule in firewall_rules],
         "cis_results": [result.model_dump(mode="json") for result in cis_results],
         "summary": summary,
+        "persistence": persistence,
     }
 
     try:
         s3_client.archive_raw_result(scan_id, payload)
+        persistence["s3"] = "synced"
     except Exception as exc:
         logger.warning(f"failed to archive raw result: {exc}")
 
     return payload
+

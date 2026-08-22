@@ -30,8 +30,9 @@ const SCAN_STAGES = [
   { label: 'Subnet Discovery', desc: 'Probing IP endpoints & resolving ARP MACs', duration: 8 },
   { label: 'Port Auditing', desc: 'Analyzing TCP open ports & banner grabbing', duration: 18 },
   { label: 'CIS IOS Engine', desc: 'Evaluating Cisco IOS 16 benchmark checks', duration: 28 },
-  { label: 'Cloud Persistence', desc: 'Syncing assets & policies to AWS DynamoDB', duration: 35 }
+  { label: 'Data Persistence', desc: 'Syncing assets & policies to storage engine', duration: 35 }
 ]
+
 
 export default function ScanTriggerForm({ onClose, onScanComplete }) {
   const [target, setTarget] = useState('127.0.0.1')
@@ -126,9 +127,16 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
               </h3>
               <p className="text-xs text-slate-500">
                 {scanResult
-                  ? 'Audit finished and synced with AWS DynamoDB'
+                  ? scanResult.persistence?.status === 'synced'
+                    ? `Audit finished and synced with ${scanResult.persistence.details || 'AWS DynamoDB'}`
+                    : scanResult.persistence?.status === 'local'
+                    ? `Audit finished and persisted to ${scanResult.persistence.details || 'Local SQLite Database'}`
+                    : scanResult.persistence?.status === 'failed'
+                    ? 'Audit completed (Persistence Warning: Storage sync failed)'
+                    : 'Audit finished and recorded'
                   : 'Discover active nodes, audit ports, and evaluate CIS benchmarks'}
               </p>
+
             </div>
           </div>
           {!submitting && (
