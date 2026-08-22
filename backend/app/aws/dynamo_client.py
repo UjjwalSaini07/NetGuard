@@ -32,12 +32,7 @@ def _is_local_mode() -> bool:
 def check_health() -> str:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            client = _client()
-            client.describe_limits()
-            return "ok"
-        except Exception:
-            return "ok"
+        return "ok"
     try:
         client = _client()
         client.describe_limits()
@@ -45,6 +40,7 @@ def check_health() -> str:
     except Exception as exc:
         logger.debug(f"dynamodb health check failed: {exc}")
         return "error"
+
 
 
 

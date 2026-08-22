@@ -27,7 +27,8 @@ export function ScanDataProvider({ children }) {
   const checkHealth = useCallback(async () => {
     const start = performance.now()
     try {
-      const response = await client.get('/health', { timeout: 3000 })
+      const response = await client.get('/health', { timeout: 8000 })
+
       if (response.data && response.data.status === 'ok') {
         setHealth({
           isOnline: true,
