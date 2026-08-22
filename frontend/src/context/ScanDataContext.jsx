@@ -111,6 +111,7 @@ export function ScanDataProvider({ children }) {
         client.get('/firewall-rules')
       ])
 
+      const errorMessages = []
       let newestTimestamp = null
 
       if (devRes.status === 'fulfilled' && devRes.value.data) {
@@ -122,6 +123,9 @@ export function ScanDataProvider({ children }) {
             newestTimestamp = itemTs
           }
         })
+      } else if (devRes.status === 'rejected') {
+        const msg = devRes.reason?.response?.data?.detail?.error || devRes.reason?.response?.data?.detail || devRes.reason?.message || 'Failed to load network assets'
+        errorMessages.push(`Network Assets: ${typeof msg === 'object' ? JSON.stringify(msg) : msg}`)
       }
 
       if (cisRes.status === 'fulfilled' && cisRes.value.data) {
@@ -139,15 +143,25 @@ export function ScanDataProvider({ children }) {
             newestTimestamp = itemTs
           }
         })
+      } else if (cisRes.status === 'rejected') {
+        const msg = cisRes.reason?.response?.data?.detail?.error || cisRes.reason?.response?.data?.detail || cisRes.reason?.message || 'Failed to load CIS compliance results'
+        errorMessages.push(`CIS Audits: ${typeof msg === 'object' ? JSON.stringify(msg) : msg}`)
       }
 
       if (fwRes.status === 'fulfilled' && fwRes.value.data) {
         const items = fwRes.value.data.items || []
         setFirewallRules(items)
+      } else if (fwRes.status === 'rejected') {
+        const msg = fwRes.reason?.response?.data?.detail?.error || fwRes.reason?.response?.data?.detail || fwRes.reason?.message || 'Failed to load firewall policies'
+        errorMessages.push(`Firewall Rules: ${typeof msg === 'object' ? JSON.stringify(msg) : msg}`)
       }
 
       if (newestTimestamp) {
         setLastScanTimestamp(newestTimestamp)
+      }
+
+      if (errorMessages.length > 0) {
+        setError(errorMessages.join(' | '))
       }
     } catch (err) {
       setError(err.response?.data?.detail || err.message)
@@ -155,6 +169,7 @@ export function ScanDataProvider({ children }) {
       setLoading(false)
     }
   }, [])
+
 
   useEffect(() => {
     fetchAll()
