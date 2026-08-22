@@ -8,10 +8,10 @@ from app.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def archive_raw_result(scan_id: str, payload: dict) -> None:
+def archive_raw_result(scan_id: str, payload: dict) -> str:
     settings = get_settings()
     if not settings.s3_bucket_raw_results:
-        return
+        return "skipped"
     try:
         client = boto3.client("s3", region_name=settings.aws_region)
         client.put_object(
@@ -20,5 +20,8 @@ def archive_raw_result(scan_id: str, payload: dict) -> None:
             Body=json.dumps(payload, default=str).encode("utf-8"),
             ContentType="application/json",
         )
+        return "synced"
     except Exception as exc:
         logger.warning(f"failed to archive raw result for {scan_id}: {exc}")
+        return "failed"
+

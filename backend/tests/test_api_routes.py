@@ -320,6 +320,53 @@ def test_scan_metadata_indexing_and_latest_scan_resolution():
     assert resolved == scan2
 
 
+def test_s3_archive_skipped_when_no_bucket_configured(monkeypatch):
+    from app.aws import s3_client
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("S3_BUCKET_RAW_RESULTS", "")
+    get_settings.cache_clear()
+
+    status = s3_client.archive_raw_result("scan-test-1", {"test": "data"})
+    assert status == "skipped"
+
+
+def test_s3_archive_synced_when_upload_succeeds(monkeypatch):
+    from unittest.mock import MagicMock
+    from app.aws import s3_client
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("S3_BUCKET_RAW_RESULTS", "test-bucket")
+    get_settings.cache_clear()
+
+    mock_client = MagicMock()
+    monkeypatch.setattr("boto3.client", lambda service, **kwargs: mock_client)
+
+    status = s3_client.archive_raw_result("scan-test-2", {"test": "data"})
+    assert status == "synced"
+    mock_client.put_object.assert_called_once()
+
+
+def test_s3_archive_failed_when_upload_raises(monkeypatch):
+    from unittest.mock import MagicMock
+    from app.aws import s3_client
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("S3_BUCKET_RAW_RESULTS", "test-bucket")
+    get_settings.cache_clear()
+
+    mock_client = MagicMock()
+    mock_client.put_object.side_effect = RuntimeError("S3 Put Failed")
+    monkeypatch.setattr("boto3.client", lambda service, **kwargs: mock_client)
+
+    status = s3_client.archive_raw_result("scan-test-3", {"test": "data"})
+    assert status == "failed"
+
+
+
 
 
 

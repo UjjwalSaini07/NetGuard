@@ -132,11 +132,10 @@ def run_scan(scan_request: ScanRequest, max_hosts: int) -> dict:
 
     is_local = settings.runtime_mode == "local"
     persistence = {
-
         "engine": "sqlite" if is_local else "dynamodb",
         "status": "local" if (is_local and db_success) else "synced" if db_success else "failed",
         "details": "Local SQLite Database" if is_local else f"AWS DynamoDB ({settings.aws_region})",
-        "s3": "skipped" if is_local else "failed",
+        "s3": "skipped",
     }
 
     payload = {
@@ -149,11 +148,7 @@ def run_scan(scan_request: ScanRequest, max_hosts: int) -> dict:
         "persistence": persistence,
     }
 
-    try:
-        s3_client.archive_raw_result(scan_id, payload)
-        persistence["s3"] = "synced"
-    except Exception as exc:
-        logger.warning(f"failed to archive raw result: {exc}")
-
+    persistence["s3"] = s3_client.archive_raw_result(scan_id, payload)
     return payload
+
 
