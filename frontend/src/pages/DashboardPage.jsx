@@ -70,11 +70,15 @@ export default function DashboardPage() {
                     <span className="text-slate-500 font-semibold flex items-center gap-1">
                       <HiShieldCheck className="h-4 w-4 inline text-slate-400" /> Pending Audit
                     </span>
-                  ) : complianceScore >= 80 ? (
+                  ) : complianceScore === 100 ? (
                     <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                      <HiCheckCircle className="h-4 w-4 inline text-emerald-600" /> Hardened
+                      <HiCheckCircle className="h-4 w-4 inline text-emerald-600" /> Fully Hardened
                     </span>
-                  ) : complianceScore > 0 ? (
+                  ) : complianceScore >= 90 ? (
+                    <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                      <HiCheckCircle className="h-4 w-4 inline text-emerald-600" /> Strong / Minor Gaps
+                    </span>
+                  ) : complianceScore >= 70 ? (
                     <span className="text-amber-700 font-semibold flex items-center gap-1">
                       <HiExclamationCircle className="h-4 w-4 inline text-amber-500" /> Action Needed
                     </span>
@@ -92,9 +96,9 @@ export default function DashboardPage() {
                     className={`h-full transition-all duration-1000 ${
                       totalChecks === 0
                         ? 'bg-slate-200'
-                        : complianceScore >= 80
+                        : complianceScore >= 90
                         ? 'bg-emerald-500'
-                        : complianceScore > 0
+                        : complianceScore >= 70
                         ? 'bg-amber-500'
                         : 'bg-rose-500'
                     }`}
@@ -108,6 +112,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
 
 
           <div className="mt-6 border-t border-slate-100 pt-4">

@@ -190,9 +190,9 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
                   <span className="text-[11px] font-bold uppercase tracking-wider">Compliance</span>
                 </div>
                 <div className={`text-xl font-bold mono ${
-                  complianceScore >= 80
+                  complianceScore >= 90
                     ? 'text-emerald-600'
-                    : complianceScore >= 50
+                    : complianceScore >= 70
                     ? 'text-amber-600'
                     : 'text-rose-600'
                 }`}>
@@ -201,6 +201,7 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
                 <span className="text-[10px] text-slate-400 font-medium">Posture rating</span>
               </div>
             </div>
+
 
             <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
               <button
