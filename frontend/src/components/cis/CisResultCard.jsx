@@ -18,10 +18,11 @@ ip access-list extended EGRESS_FILTER
 interface GigabitEthernet0/1
  ip access-group EGRESS_FILTER out`,
 
-  check_insecure_mgmt_protocols: `! Disable Telnet and plain HTTP management
+  check_insecure_mgmt_protocols: `! Disable insecure management protocols (Telnet, HTTP, SNMPv1/v2c)
 no ip http server
 no ip http secure-server
-line vty 0 4
+no snmp-server
+line vty 0 15
  transport input ssh
  exec-timeout 15 0`,
 
@@ -63,8 +64,77 @@ ntp authenticate`,
 ip domain-name enterprise.local
 crypto key generate rsa modulus 2048
 ip ssh version 2
-line vty 0 4
- transport input ssh`
+line vty 0 15
+ transport input ssh
+ exec-timeout 15 0`
+}
+
+function getRemediation(result) {
+  if (!result || !result.check_id) return null
+
+  const items = result.affected_items || []
+
+  if (result.check_id === 'check_insecure_mgmt_protocols') {
+    const lines = []
+    const hasHttp = items.some((i) => i.toLowerCase().includes('http') || i.includes(':80'))
+    const hasTelnet = items.some((i) => i.toLowerCase().includes('telnet') || i.includes(':23'))
+    const hasSnmp = items.some((i) => i.toLowerCase().includes('snmp') || i.includes(':161'))
+    const hasFtp = items.some((i) => i.toLowerCase().includes('ftp') || i.includes(':21'))
+
+    if (hasSnmp) {
+      lines.push('! Remove unencrypted SNMPv1/v2c configuration')
+      const snmpLines = items.filter((i) => i.toLowerCase().includes('snmp-server community'))
+      if (snmpLines.length > 0) {
+        snmpLines.forEach((s) => {
+          lines.push(`no ${s.replace(/^firewall-rule:\s*/i, '').trim()}`)
+        })
+      } else {
+        lines.push('no snmp-server')
+      }
+    }
+
+    if (hasHttp) {
+      lines.push('! Disable unencrypted HTTP web management server')
+      lines.push('no ip http server')
+      lines.push('no ip http secure-server')
+    }
+
+    if (hasTelnet) {
+      lines.push('! Disable Telnet and enforce SSH on VTY lines')
+      lines.push('line vty 0 15')
+      lines.push(' transport input ssh')
+      lines.push(' exec-timeout 15 0')
+    }
+
+    if (hasFtp) {
+      lines.push('! Disable legacy FTP service')
+      lines.push('no ftp-server enable')
+    }
+
+    if (lines.length === 0) {
+      return REMEDIATION_SNIPPETS.check_insecure_mgmt_protocols
+    }
+    return lines.join('\n')
+  }
+
+  if (result.check_id === 'check_weak_snmp_community') {
+    const lines = ['! Remove weak SNMP community strings']
+    const snmpLines = items.filter((i) => i.toLowerCase().includes('snmp-server community'))
+    if (snmpLines.length > 0) {
+      snmpLines.forEach((s) => {
+        lines.push(`no ${s.replace(/^firewall-rule:\s*/i, '').trim()}`)
+      })
+    } else {
+      lines.push('no snmp-server community public')
+      lines.push('no snmp-server community private')
+    }
+    lines.push('! Enforce encrypted SNMPv3')
+    lines.push('snmp-server group SECURE_GRP v3 priv')
+    lines.push('snmp-server user secadmin SECURE_GRP v3 auth sha StrongAuthPass priv aes 128 StrongPrivPass')
+    return lines.join('\n')
+  }
+
+  return REMEDIATION_SNIPPETS[result.check_id] || null
 }
 
 export default function CisResultCard({ result }) {
@@ -72,7 +142,8 @@ export default function CisResultCard({ result }) {
   const [copied, setCopied] = useState(false)
 
   const isPass = result.status === 'PASS'
-  const remediation = REMEDIATION_SNIPPETS[result.check_id]
+  const remediation = getRemediation(result)
+
 
   const handleCopyRemediation = (e) => {
     e.stopPropagation()
