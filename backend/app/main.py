@@ -34,7 +34,9 @@ def health_check():
         "status": "ok",
         "dynamodb": db_status,
         "runtime_mode": settings.runtime_mode,
+        "aws_region": settings.aws_region,
     }
+
 
 
 app.include_router(api_router)
