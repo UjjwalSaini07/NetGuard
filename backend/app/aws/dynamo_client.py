@@ -17,11 +17,35 @@ def _resource():
     return boto3.resource("dynamodb", region_name=settings.aws_region)
 
 
+def _client():
+    settings = get_settings()
+    return boto3.client("dynamodb", region_name=settings.aws_region)
+
+
 def _is_local_mode() -> bool:
     try:
         return get_settings().runtime_mode == "local"
     except Exception:
         return True
+
+
+def check_health() -> str:
+    settings = get_settings()
+    if _is_local_mode():
+        try:
+            client = _client()
+            client.describe_limits()
+            return "ok"
+        except Exception:
+            return "ok"
+    try:
+        client = _client()
+        client.describe_limits()
+        return "ok"
+    except Exception as exc:
+        logger.debug(f"dynamodb health check failed: {exc}")
+        return "error"
+
 
 
 def put_device(device: Device) -> None:

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.aws import dynamo_client
 from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
 
@@ -28,7 +29,13 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    db_status = dynamo_client.check_health()
+    return {
+        "status": "ok",
+        "dynamodb": db_status,
+        "runtime_mode": settings.runtime_mode,
+    }
 
 
 app.include_router(api_router)
+

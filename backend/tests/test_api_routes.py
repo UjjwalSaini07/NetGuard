@@ -20,7 +20,10 @@ API_KEY = os.environ["NETGUARD_API_KEY"]
 def test_health_check_requires_no_auth():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["dynamodb"] == "ok"
+
 
 
 def test_devices_endpoint_rejects_missing_api_key():
