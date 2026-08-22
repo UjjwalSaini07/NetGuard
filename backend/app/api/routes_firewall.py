@@ -20,7 +20,13 @@ def list_firewall_rules(
             items = dynamo_client.query_firewall_rules_by_scan(scan_id)
         else:
             response = dynamo_client.scan_all_firewall_rules(limit, None)
-            items = response.get("Items", [])
+            raw_items = response.get("Items", [])
+            deduped = {}
+            for item in raw_items:
+                sig = item.get("raw_line") or f"{item.get('action')}_{item.get('protocol')}_{item.get('source')}_{item.get('destination')}_{item.get('port') or ''}"
+                if sig and sig not in deduped:
+                    deduped[sig] = item
+            items = list(deduped.values())
 
         if action:
             items = [item for item in items if item.get("action") == action]
@@ -29,3 +35,4 @@ def list_firewall_rules(
     except (BotoCoreError, ClientError) as exc:
         logger.error(f"dynamodb error listing firewall rules: {exc}")
         raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": str(exc)}) from exc
+
