@@ -196,6 +196,21 @@ def test_egress_default_deny_passes_when_specific_permits_before_deny_all():
     assert outcome.status == "PASS"
 
 
+def test_egress_default_deny_fails_when_deny_source_is_specific_subnet():
+    rule = _rule(
+        direction="egress",
+        action="deny",
+        source="10.10.0.0/24",
+        destination="any",
+        protocol="ip",
+        port=None,
+        raw_line="deny ip 10.10.0.0 0.0.0.255 any",
+    )
+    outcome = EgressDefaultDenyCheck().run([], [rule], EMPTY_CONTEXT)
+    assert outcome.status == "FAIL"
+
+
+
 def test_ssh_only_mgmt_respects_custom_management_subnet(monkeypatch):
     from app.config import get_settings
 

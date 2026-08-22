@@ -23,20 +23,29 @@ class EgressDefaultDenyCheck(BaseCheck):
 
         deny_all_index = None
         for idx, rule in enumerate(egress_rules):
-            if rule.action == "deny" and rule.destination in ("any", "0.0.0.0/0") and rule.protocol in ("ip", "all"):
+            if (
+                rule.action == "deny"
+                and rule.source in ("any", "0.0.0.0/0")
+                and rule.destination in ("any", "0.0.0.0/0")
+                and rule.protocol in ("ip", "all")
+            ):
                 deny_all_index = idx
                 break
 
         if deny_all_index is None:
             allow_all_egress = [
                 rule for rule in egress_rules
-                if rule.action == "permit" and rule.destination in ("any", "0.0.0.0/0") and rule.protocol in ("ip", "all")
+                if rule.action == "permit"
+                and rule.source in ("any", "0.0.0.0/0")
+                and rule.destination in ("any", "0.0.0.0/0")
+                and rule.protocol in ("ip", "all")
             ]
             return CisCheckOutcome(
                 status="FAIL",
                 evidence="Egress ACL allows all traffic with no explicit default-deny rule.",
                 affected_items=[rule.raw_line for rule in allow_all_egress] if allow_all_egress else ["Missing explicit default-deny rule"],
             )
+
 
         permit_all_before_deny = [
             rule for rule in egress_rules[:deny_all_index]
