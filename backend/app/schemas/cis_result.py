@@ -16,9 +16,12 @@ class CisResult(BaseModel):
     status: CheckStatus
     evidence: str
     affected_items: list[str] = Field(default_factory=list)
+    evaluated_at: str | None = None
+    timestamp: str | None = None
 
 
 class CisSummary(BaseModel):
     total: int
     passed: int
     failed: int
+

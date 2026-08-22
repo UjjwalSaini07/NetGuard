@@ -20,9 +20,21 @@ def list_cis_results(
             items = dynamo_client.query_cis_results_by_scan(scan_id)
         else:
             response = dynamo_client.scan_all_cis_results(limit, None)
-            items = response.get("Items", [])
+            raw_items = response.get("Items", [])
+            raw_items.sort(key=lambda x: x.get("timestamp") or x.get("evaluated_at") or "", reverse=True)
+            deduped = {}
+            items_without_id = []
+            for item in raw_items:
+                cid = item.get("check_id")
+                if cid:
+                    if cid not in deduped:
+                        deduped[cid] = item
+                else:
+                    items_without_id.append(item)
+            items = list(deduped.values()) + items_without_id
 
-        items.sort(key=lambda x: x.get("timestamp") or x.get("evaluated_at") or "", reverse=True)
+
+        items.sort(key=lambda x: x.get("check_id") or "")
 
         if status:
             items = [item for item in items if item.get("status") == status]
@@ -33,4 +45,5 @@ def list_cis_results(
     except (BotoCoreError, ClientError) as exc:
         logger.error(f"dynamodb error listing cis results: {exc}")
         raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": str(exc)}) from exc
+
 

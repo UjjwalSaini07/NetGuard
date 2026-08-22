@@ -3,13 +3,28 @@ import client from '../api/client.js'
 
 const ScanDataContext = createContext(null)
 
+const readCachedData = () => {
+  try {
+    const raw = localStorage.getItem('netguard_scan_cache')
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+
+const writeCachedData = (payload) => {
+  try {
+    localStorage.setItem('netguard_scan_cache', JSON.stringify(payload))
+  } catch {}
+}
+
 export function ScanDataProvider({ children }) {
-  const [devices, setDevices] = useState([])
-  const [cisResults, setCisResults] = useState([])
-  const [cisSummary, setCisSummary] = useState({ total: 0, passed: 0, failed: 0 })
-  const [firewallRules, setFirewallRules] = useState([])
-  const [lastScanTimestamp, setLastScanTimestamp] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const cached = readCachedData()
+  const [devices, setDevices] = useState(cached?.devices || [])
+  const [cisResults, setCisResults] = useState(cached?.cisResults || [])
+  const [cisSummary, setCisSummary] = useState(cached?.cisSummary || { total: 0, passed: 0, failed: 0 })
+  const [firewallRules, setFirewallRules] = useState(cached?.firewallRules || [])
+  const [lastScanTimestamp, setLastScanTimestamp] = useState(cached?.lastScanTimestamp || null)
+  const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState(null)
 
   const [health, setHealth] = useState({
@@ -93,15 +108,26 @@ export function ScanDataProvider({ children }) {
         client.get('/firewall-rules')
       ])
 
+      let newestTimestamp = null
+      let newDevices = []
+      let newCis = []
+      let newSummary = { total: 0, passed: 0, failed: 0 }
+      let newFw = []
+
       if (devRes.status === 'fulfilled' && devRes.value.data) {
         const raw = devRes.value.data.items || []
         const dMap = new Map()
         raw.forEach((item) => {
           if (item.ip_address && !dMap.has(item.ip_address)) {
             dMap.set(item.ip_address, item)
+            const itemTs = item.discovered_at || item.timestamp
+            if (itemTs && (!newestTimestamp || itemTs > newestTimestamp)) {
+              newestTimestamp = itemTs
+            }
           }
         })
-        setDevices(Array.from(dMap.values()))
+        newDevices = Array.from(dMap.values())
+        setDevices(newDevices)
       }
 
       if (cisRes.status === 'fulfilled' && cisRes.value.data) {
@@ -110,16 +136,21 @@ export function ScanDataProvider({ children }) {
         raw.forEach((item) => {
           if (item.check_id && !cMap.has(item.check_id)) {
             cMap.set(item.check_id, item)
+            const itemTs = item.evaluated_at || item.timestamp
+            if (itemTs && (!newestTimestamp || itemTs > newestTimestamp)) {
+              newestTimestamp = itemTs
+            }
           }
         })
-        const items = Array.from(cMap.values())
-        const passed = items.filter((i) => i.status === 'PASS').length
-        setCisResults(items)
-        setCisSummary({
-          total: items.length,
+        newCis = Array.from(cMap.values())
+        const passed = newCis.filter((i) => i.status === 'PASS').length
+        newSummary = {
+          total: newCis.length,
           passed,
-          failed: items.length - passed
-        })
+          failed: newCis.length - passed
+        }
+        setCisResults(newCis)
+        setCisSummary(newSummary)
       }
 
       if (fwRes.status === 'fulfilled' && fwRes.value.data) {
@@ -131,8 +162,21 @@ export function ScanDataProvider({ children }) {
             fMap.set(sig, item)
           }
         })
-        setFirewallRules(Array.from(fMap.values()))
+        newFw = Array.from(fMap.values())
+        setFirewallRules(newFw)
       }
+
+      setLastScanTimestamp((prev) => {
+        const finalTs = newestTimestamp || prev
+        writeCachedData({
+          devices: newDevices,
+          cisResults: newCis,
+          cisSummary: newSummary,
+          firewallRules: newFw,
+          lastScanTimestamp: finalTs
+        })
+        return finalTs
+      })
     } catch (err) {
       setError(err.response?.data?.detail || err.message)
     } finally {
@@ -147,9 +191,13 @@ export function ScanDataProvider({ children }) {
   const applyScanResult = useCallback((scanPayload) => {
     if (!scanPayload) return
 
-    if (scanPayload.timestamp) {
-      setLastScanTimestamp(scanPayload.timestamp)
-    }
+    const ts = scanPayload.timestamp || new Date().toISOString()
+    setLastScanTimestamp(ts)
+
+    let updatedDevices = []
+    let updatedCis = []
+    let updatedSummary = { total: 0, passed: 0, failed: 0 }
+    let updatedFw = []
 
     if (Array.isArray(scanPayload.devices)) {
       setDevices((prev) => {
@@ -162,7 +210,8 @@ export function ScanDataProvider({ children }) {
             dMap.set(d.ip_address, d)
           }
         })
-        return Array.from(dMap.values())
+        updatedDevices = Array.from(dMap.values())
+        return updatedDevices
       })
     }
 
@@ -177,14 +226,15 @@ export function ScanDataProvider({ children }) {
             cMap.set(c.check_id, c)
           }
         })
-        const items = Array.from(cMap.values())
-        const passed = items.filter((i) => i.status === 'PASS').length
-        setCisSummary({
-          total: items.length,
+        updatedCis = Array.from(cMap.values())
+        const passed = updatedCis.filter((i) => i.status === 'PASS').length
+        updatedSummary = {
+          total: updatedCis.length,
           passed,
-          failed: items.length - passed
-        })
-        return items
+          failed: updatedCis.length - passed
+        }
+        setCisSummary(updatedSummary)
+        return updatedCis
       })
     }
 
@@ -201,10 +251,21 @@ export function ScanDataProvider({ children }) {
             fMap.set(sig, r)
           }
         })
-        return Array.from(fMap.values())
+        updatedFw = Array.from(fMap.values())
+        return updatedFw
       })
     }
-  }, [])
+
+    setTimeout(() => {
+      writeCachedData({
+        devices: updatedDevices.length > 0 ? updatedDevices : devices,
+        cisResults: updatedCis.length > 0 ? updatedCis : cisResults,
+        cisSummary: updatedSummary.total > 0 ? updatedSummary : cisSummary,
+        firewallRules: updatedFw.length > 0 ? updatedFw : firewallRules,
+        lastScanTimestamp: ts
+      })
+    }, 50)
+  }, [devices, cisResults, cisSummary, firewallRules])
 
   return (
     <ScanDataContext.Provider
@@ -233,4 +294,5 @@ export function useScanData() {
   }
   return context
 }
+
 

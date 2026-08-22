@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from app.benchmarks.base_check import BaseCheck
 from app.benchmarks.checks.check_egress_default_deny import EgressDefaultDenyCheck
 from app.benchmarks.checks.check_insecure_mgmt_protocols import InsecureMgmtProtocolsCheck
@@ -30,6 +32,7 @@ def run_all_checks(
     scan_id: str,
 ) -> tuple[list[CisResult], dict]:
     results: list[CisResult] = []
+    now_ts = datetime.now(timezone.utc).isoformat()
     for check_cls in REGISTERED_CHECKS:
         check_instance = check_cls()
         outcome = check_instance.run(devices, firewall_rules, firewall_context)
@@ -42,9 +45,12 @@ def run_all_checks(
                 status=outcome.status,
                 evidence=outcome.evidence,
                 affected_items=outcome.affected_items,
+                evaluated_at=now_ts,
+                timestamp=now_ts,
             )
         )
 
     passed = sum(1 for result in results if result.status == "PASS")
     summary = {"total": len(results), "passed": passed, "failed": len(results) - passed}
     return results, summary
+
