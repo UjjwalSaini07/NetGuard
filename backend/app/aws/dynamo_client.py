@@ -226,29 +226,50 @@ def scan_all_cis_results(limit: int = 100, exclusive_start_key: dict | None = No
 
 
 
+def put_scan_metadata(scan_id: str, created_at: str, target: str, status: str, summary: dict | None = None) -> None:
+    settings = get_settings()
+    item = {
+        "entity_type": "SCAN",
+        "created_at": created_at,
+        "scan_id": scan_id,
+        "target": target,
+        "status": status,
+        "summary": summary or {},
+    }
+    if _is_local_mode():
+        try:
+            table = _resource().Table(settings.dynamodb_table_scans)
+            table.put_item(Item=item)
+            return
+        except (BotoCoreError, ClientError, Exception) as exc:
+            logger.debug(f"DynamoDB unavailable locally, saving scan metadata to local SQLite: {exc}")
+            local_db.put_scan_metadata(scan_id, created_at, target, status, summary)
+            return
+
+    table = _resource().Table(settings.dynamodb_table_scans)
+    table.put_item(Item=item)
+
+
 def get_latest_scan_id() -> str | None:
     settings = get_settings()
     if _is_local_mode():
-        try:
-            table = _resource().Table(settings.dynamodb_table_devices)
-            response = table.scan(ProjectionExpression="scan_id, discovered_at", Limit=500)
-            items = response.get("Items", [])
-            if items:
-                items.sort(key=lambda x: x.get("discovered_at") or "", reverse=True)
-                return items[0].get("scan_id")
-        except (BotoCoreError, ClientError, Exception) as exc:
-            logger.debug(f"DynamoDB unavailable locally, getting latest scan_id from local SQLite: {exc}")
-            return local_db.get_latest_scan_id()
+        return local_db.get_latest_scan_id()
 
     try:
-        table = _resource().Table(settings.dynamodb_table_devices)
-        response = table.scan(ProjectionExpression="scan_id, discovered_at", Limit=500)
+        table = _resource().Table(settings.dynamodb_table_scans)
+        response = table.query(
+            KeyConditionExpression=Key("entity_type").eq("SCAN"),
+            ScanIndexForward=False,
+            Limit=1,
+        )
         items = response.get("Items", [])
         if items:
-            items.sort(key=lambda x: x.get("discovered_at") or "", reverse=True)
             return items[0].get("scan_id")
     except Exception as exc:
-        logger.debug(f"Failed to get latest scan_id from DynamoDB: {exc}")
+        logger.debug(f"Failed to query latest scan_id from Scans table: {exc}")
+
     return local_db.get_latest_scan_id()
+
+
 
 

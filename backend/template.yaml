@@ -32,6 +32,7 @@ Resources:
           DYNAMODB_TABLE_DEVICES: !Ref DevicesTable
           DYNAMODB_TABLE_FIREWALL_RULES: !Ref FirewallRulesTable
           DYNAMODB_TABLE_CIS_RESULTS: !Ref CisResultsTable
+          DYNAMODB_TABLE_SCANS: !Ref ScansTable
           SCAN_MAX_HOSTS_LAMBDA: 16
           LOG_LEVEL: !Ref LogLevel
           S3_BUCKET_RAW_RESULTS: !Ref S3BucketRawResults
@@ -44,6 +45,8 @@ Resources:
             TableName: !Ref FirewallRulesTable
         - DynamoDBCrudPolicy:
             TableName: !Ref CisResultsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScansTable
         - S3CrudPolicy:
             BucketName: !If [HasS3Bucket, !Ref S3BucketRawResults, !Ref AWS::NoValue]
       Events:
@@ -100,6 +103,23 @@ Resources:
           KeyType: HASH
         - AttributeName: check_id
           KeyType: RANGE
+
+  ScansTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: NetGuardScans
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: entity_type
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: entity_type
+          KeyType: HASH
+        - AttributeName: created_at
+          KeyType: RANGE
+
 
 Conditions:
   HasS3Bucket: !Not [!Equals [!Ref S3BucketRawResults, '']]

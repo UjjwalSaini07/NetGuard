@@ -210,6 +210,12 @@ def test_devices_endpoint_scopes_to_latest_scan_when_no_scan_id():
     from app.aws import local_db
     from app.schemas.device import Device
 
+    local_db.put_scan_metadata(
+        scan_id="scan-new-222",
+        created_at="2026-08-25T00:00:00Z",
+        target="10.0.0.2",
+        status="COMPLETED",
+    )
     dev_old = Device(
         device_id="dev-old",
         scan_id="scan-old-111",
@@ -220,7 +226,7 @@ def test_devices_endpoint_scopes_to_latest_scan_when_no_scan_id():
         device_id="dev-new",
         scan_id="scan-new-222",
         ip_address="10.0.0.2",
-        discovered_at="2026-08-22T00:00:00Z",
+        discovered_at="2026-08-25T00:00:00Z",
     )
     local_db.put_device(dev_old)
     local_db.put_device(dev_new)
@@ -271,6 +277,28 @@ def test_cis_results_endpoint_returns_next_token_when_more_pages_exist():
     data3 = resp3.json()
     assert len(data3["items"]) == 1
     assert data3["next_token"] is None
+
+
+def test_scan_metadata_indexing_and_latest_scan_resolution():
+    from app.aws import dynamo_client, local_db
+
+    local_db.put_scan_metadata(
+        scan_id="scan-meta-001",
+        created_at="2026-08-26T00:00:00Z",
+        target="10.0.0.1",
+        status="COMPLETED",
+    )
+    local_db.put_scan_metadata(
+        scan_id="scan-meta-002",
+        created_at="2026-08-27T00:00:00Z",
+        target="10.0.0.2",
+        status="COMPLETED",
+    )
+
+    resolved = dynamo_client.get_latest_scan_id()
+    assert resolved == "scan-meta-002"
+
+
 
 
 

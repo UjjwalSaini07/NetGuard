@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     dynamodb_table_devices: str = Field(alias="DYNAMODB_TABLE_DEVICES")
     dynamodb_table_firewall_rules: str = Field(alias="DYNAMODB_TABLE_FIREWALL_RULES")
     dynamodb_table_cis_results: str = Field(alias="DYNAMODB_TABLE_CIS_RESULTS")
+    dynamodb_table_scans: str = Field(default="NetGuardScans", alias="DYNAMODB_TABLE_SCANS")
+
     scan_port_list: str = Field(
         default="21,22,23,25,53,80,110,143,443,445,3306,3389,5432,8080",
         alias="SCAN_PORT_LIST",

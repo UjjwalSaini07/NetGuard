@@ -50,9 +50,31 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scans (
+                scan_id TEXT PRIMARY KEY,
+                entity_type TEXT,
+                created_at TEXT,
+                target TEXT,
+                status TEXT,
+                summary TEXT
+            )
+            """
+        )
+
+
+def put_scan_metadata(scan_id: str, created_at: str, target: str, status: str, summary: dict | None = None) -> None:
+    init_db()
+    with _get_connection() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO scans (scan_id, entity_type, created_at, target, status, summary) VALUES (?, ?, ?, ?, ?, ?)",
+            (scan_id, "SCAN", created_at, target, status, json.dumps(summary or {})),
+        )
 
 
 def put_device(device: Device) -> None:
+
     init_db()
     with _get_connection() as conn:
         conn.execute(
@@ -166,6 +188,10 @@ def scan_all_cis_results(limit: int, exclusive_start_key: dict | None = None) ->
 def get_latest_scan_id() -> str | None:
     init_db()
     with _get_connection() as conn:
+        cursor = conn.execute("SELECT scan_id FROM scans ORDER BY created_at DESC LIMIT 1")
+        row = cursor.fetchone()
+        if row and row["scan_id"]:
+            return row["scan_id"]
         cursor = conn.execute("SELECT scan_id FROM devices ORDER BY rowid DESC LIMIT 1")
         row = cursor.fetchone()
         if row and row["scan_id"]:
@@ -177,6 +203,7 @@ def get_latest_scan_id() -> str | None:
         cursor = conn.execute("SELECT scan_id FROM firewall_rules ORDER BY rowid DESC LIMIT 1")
         row = cursor.fetchone()
         return row["scan_id"] if row else None
+
 
 
 

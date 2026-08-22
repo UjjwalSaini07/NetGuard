@@ -103,8 +103,21 @@ def run_scan(scan_request: ScanRequest, max_hosts: int) -> dict:
             db_success = False
             logger.error(f"failed to persist cis result {result.check_id}: {exc}")
 
+    try:
+        dynamo_client.put_scan_metadata(
+            scan_id=scan_id,
+            created_at=timestamp,
+            target=scan_request.target,
+            status="COMPLETED" if db_success else "PARTIAL",
+            summary=summary,
+        )
+    except Exception as exc:
+        db_success = False
+        logger.error(f"failed to persist scan metadata {scan_id}: {exc}")
+
     is_local = settings.runtime_mode == "local"
     persistence = {
+
         "engine": "sqlite" if is_local else "dynamodb",
         "status": "local" if (is_local and db_success) else "synced" if db_success else "failed",
         "details": "Local SQLite Database" if is_local else f"AWS DynamoDB ({settings.aws_region})",
