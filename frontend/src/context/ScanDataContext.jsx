@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import client from '../api/client.js'
 
 const ScanDataContext = createContext(null)
@@ -22,14 +22,16 @@ export function ScanDataProvider({ children }) {
     lastChecked: null
   })
 
+  const lastCheckedRef = useRef(0)
   const safePollInterval = 300000
 
   const checkHealth = useCallback(async () => {
     const start = performance.now()
     try {
       const response = await client.get('/health', { timeout: 8000 })
-
-      if (response.data && response.data.status === 'ok') {
+      const now = Date.now()
+      lastCheckedRef.current = now
+      if (response.data && (response.data.status === 'ok' || response.data.status === 'degraded')) {
         setHealth({
           isOnline: true,
           dynamodb: response.data.dynamodb || 'ok',
@@ -37,7 +39,7 @@ export function ScanDataProvider({ children }) {
           awsRegion: response.data.aws_region || import.meta.env.VITE_AWS_REGION || 'us-east-1',
           latency: Math.round(performance.now() - start),
           checking: false,
-          lastChecked: Date.now()
+          lastChecked: now
         })
       } else {
         setHealth({
@@ -47,10 +49,12 @@ export function ScanDataProvider({ children }) {
           awsRegion: import.meta.env.VITE_AWS_REGION || 'us-east-1',
           latency: null,
           checking: false,
-          lastChecked: Date.now()
+          lastChecked: now
         })
       }
     } catch {
+      const now = Date.now()
+      lastCheckedRef.current = now
       setHealth({
         isOnline: false,
         dynamodb: 'error',
@@ -58,11 +62,10 @@ export function ScanDataProvider({ children }) {
         awsRegion: import.meta.env.VITE_AWS_REGION || 'us-east-1',
         latency: null,
         checking: false,
-        lastChecked: Date.now()
+        lastChecked: now
       })
     }
   }, [])
-
 
   useEffect(() => {
     let timerId
@@ -79,7 +82,7 @@ export function ScanDataProvider({ children }) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        const elapsed = health.lastChecked ? Date.now() - health.lastChecked : Infinity
+        const elapsed = Date.now() - lastCheckedRef.current
         if (elapsed > 120000) {
           runProbe()
           clearInterval(timerId)
@@ -94,7 +97,8 @@ export function ScanDataProvider({ children }) {
       clearInterval(timerId)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [checkHealth, health.lastChecked, safePollInterval])
+  }, [checkHealth, safePollInterval])
+
 
 
   const fetchAll = useCallback(async () => {
