@@ -102,26 +102,65 @@ def query_cis_results_by_scan(scan_id: str) -> list[dict]:
 
 def scan_all_devices(limit: int, exclusive_start_key: dict | None = None) -> dict:
     init_db()
+    offset = 0
+    if exclusive_start_key:
+        try:
+            offset = int(exclusive_start_key.get("offset") or exclusive_start_key.get("scan_id") or 0)
+        except (ValueError, TypeError):
+            offset = 0
     with _get_connection() as conn:
-        cursor = conn.execute("SELECT item_json FROM devices ORDER BY rowid DESC LIMIT ?", (limit,))
-        items = [json.loads(row["item_json"]) for row in cursor.fetchall()]
-        return {"Items": items, "LastEvaluatedKey": None}
+        cursor = conn.execute("SELECT item_json FROM devices ORDER BY rowid DESC LIMIT ? OFFSET ?", (limit, offset))
+        rows = cursor.fetchall()
+        items = [json.loads(row["item_json"]) for row in rows]
+        last_evaluated_key = None
+        if len(rows) == limit:
+            count_cursor = conn.execute("SELECT COUNT(*) FROM devices")
+            total = count_cursor.fetchone()[0]
+            if offset + limit < total:
+                last_evaluated_key = {"offset": str(offset + limit), "scan_id": str(offset + limit)}
+        return {"Items": items, "LastEvaluatedKey": last_evaluated_key}
 
 
 def scan_all_firewall_rules(limit: int, exclusive_start_key: dict | None = None) -> dict:
     init_db()
+    offset = 0
+    if exclusive_start_key:
+        try:
+            offset = int(exclusive_start_key.get("offset") or exclusive_start_key.get("scan_id") or 0)
+        except (ValueError, TypeError):
+            offset = 0
     with _get_connection() as conn:
-        cursor = conn.execute("SELECT item_json FROM firewall_rules ORDER BY rowid DESC LIMIT ?", (limit,))
-        items = [json.loads(row["item_json"]) for row in cursor.fetchall()]
-        return {"Items": items, "LastEvaluatedKey": None}
+        cursor = conn.execute("SELECT item_json FROM firewall_rules ORDER BY rowid DESC LIMIT ? OFFSET ?", (limit, offset))
+        rows = cursor.fetchall()
+        items = [json.loads(row["item_json"]) for row in rows]
+        last_evaluated_key = None
+        if len(rows) == limit:
+            count_cursor = conn.execute("SELECT COUNT(*) FROM firewall_rules")
+            total = count_cursor.fetchone()[0]
+            if offset + limit < total:
+                last_evaluated_key = {"offset": str(offset + limit), "scan_id": str(offset + limit)}
+        return {"Items": items, "LastEvaluatedKey": last_evaluated_key}
 
 
 def scan_all_cis_results(limit: int, exclusive_start_key: dict | None = None) -> dict:
     init_db()
+    offset = 0
+    if exclusive_start_key:
+        try:
+            offset = int(exclusive_start_key.get("offset") or exclusive_start_key.get("scan_id") or 0)
+        except (ValueError, TypeError):
+            offset = 0
     with _get_connection() as conn:
-        cursor = conn.execute("SELECT item_json FROM cis_results ORDER BY rowid DESC LIMIT ?", (limit,))
-        items = [json.loads(row["item_json"]) for row in cursor.fetchall()]
-        return {"Items": items, "LastEvaluatedKey": None}
+        cursor = conn.execute("SELECT item_json FROM cis_results ORDER BY rowid DESC LIMIT ? OFFSET ?", (limit, offset))
+        rows = cursor.fetchall()
+        items = [json.loads(row["item_json"]) for row in rows]
+        last_evaluated_key = None
+        if len(rows) == limit:
+            count_cursor = conn.execute("SELECT COUNT(*) FROM cis_results")
+            total = count_cursor.fetchone()[0]
+            if offset + limit < total:
+                last_evaluated_key = {"offset": str(offset + limit), "scan_id": str(offset + limit)}
+        return {"Items": items, "LastEvaluatedKey": last_evaluated_key}
 
 
 def get_latest_scan_id() -> str | None:
@@ -129,10 +168,16 @@ def get_latest_scan_id() -> str | None:
     with _get_connection() as conn:
         cursor = conn.execute("SELECT scan_id FROM devices ORDER BY rowid DESC LIMIT 1")
         row = cursor.fetchone()
-        if row:
+        if row and row["scan_id"]:
             return row["scan_id"]
         cursor = conn.execute("SELECT scan_id FROM cis_results ORDER BY rowid DESC LIMIT 1")
         row = cursor.fetchone()
+        if row and row["scan_id"]:
+            return row["scan_id"]
+        cursor = conn.execute("SELECT scan_id FROM firewall_rules ORDER BY rowid DESC LIMIT 1")
+        row = cursor.fetchone()
         return row["scan_id"] if row else None
+
+
 
 

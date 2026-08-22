@@ -120,86 +120,89 @@ def query_cis_results_by_scan(scan_id: str) -> list[dict]:
     return response.get("Items", [])
 
 
-def scan_all_devices(limit: int, exclusive_start_key: dict | None = None) -> dict:
+def scan_all_devices(limit: int = 100, exclusive_start_key: dict | None = None) -> dict:
     settings = get_settings()
     if _is_local_mode():
         try:
             table = _resource().Table(settings.dynamodb_table_devices)
-            items = []
-            response = table.scan()
-            items.extend(response.get("Items", []))
-            while "LastEvaluatedKey" in response:
-                response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-                items.extend(response.get("Items", []))
-            items.sort(key=lambda x: x.get("discovered_at") or x.get("timestamp") or "", reverse=True)
-            return {"Items": items, "LastEvaluatedKey": None}
+            kwargs = {"Limit": limit}
+            if exclusive_start_key:
+                kwargs["ExclusiveStartKey"] = exclusive_start_key
+            response = table.scan(**kwargs)
+            return {
+                "Items": response.get("Items", []),
+                "LastEvaluatedKey": response.get("LastEvaluatedKey"),
+            }
         except (BotoCoreError, ClientError, Exception) as exc:
             logger.debug(f"DynamoDB unavailable locally, scanning local SQLite store: {exc}")
             return local_db.scan_all_devices(limit, exclusive_start_key)
 
     table = _resource().Table(settings.dynamodb_table_devices)
-    items = []
-    response = table.scan()
-    items.extend(response.get("Items", []))
-    while "LastEvaluatedKey" in response:
-        response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-        items.extend(response.get("Items", []))
-    items.sort(key=lambda x: x.get("discovered_at") or x.get("timestamp") or "", reverse=True)
-    return {"Items": items, "LastEvaluatedKey": None}
+    kwargs = {"Limit": limit}
+    if exclusive_start_key:
+        kwargs["ExclusiveStartKey"] = exclusive_start_key
+    response = table.scan(**kwargs)
+    return {
+        "Items": response.get("Items", []),
+        "LastEvaluatedKey": response.get("LastEvaluatedKey"),
+    }
 
 
-def scan_all_firewall_rules(limit: int, exclusive_start_key: dict | None = None) -> dict:
+def scan_all_firewall_rules(limit: int = 100, exclusive_start_key: dict | None = None) -> dict:
     settings = get_settings()
     if _is_local_mode():
         try:
             table = _resource().Table(settings.dynamodb_table_firewall_rules)
-            items = []
-            response = table.scan()
-            items.extend(response.get("Items", []))
-            while "LastEvaluatedKey" in response:
-                response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-                items.extend(response.get("Items", []))
-            return {"Items": items, "LastEvaluatedKey": None}
+            kwargs = {"Limit": limit}
+            if exclusive_start_key:
+                kwargs["ExclusiveStartKey"] = exclusive_start_key
+            response = table.scan(**kwargs)
+            return {
+                "Items": response.get("Items", []),
+                "LastEvaluatedKey": response.get("LastEvaluatedKey"),
+            }
         except (BotoCoreError, ClientError, Exception) as exc:
             logger.debug(f"DynamoDB unavailable locally, scanning local SQLite store: {exc}")
             return local_db.scan_all_firewall_rules(limit, exclusive_start_key)
 
     table = _resource().Table(settings.dynamodb_table_firewall_rules)
-    items = []
-    response = table.scan()
-    items.extend(response.get("Items", []))
-    while "LastEvaluatedKey" in response:
-        response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-        items.extend(response.get("Items", []))
-    return {"Items": items, "LastEvaluatedKey": None}
+    kwargs = {"Limit": limit}
+    if exclusive_start_key:
+        kwargs["ExclusiveStartKey"] = exclusive_start_key
+    response = table.scan(**kwargs)
+    return {
+        "Items": response.get("Items", []),
+        "LastEvaluatedKey": response.get("LastEvaluatedKey"),
+    }
 
 
-def scan_all_cis_results(limit: int, exclusive_start_key: dict | None = None) -> dict:
+def scan_all_cis_results(limit: int = 100, exclusive_start_key: dict | None = None) -> dict:
     settings = get_settings()
     if _is_local_mode():
         try:
             table = _resource().Table(settings.dynamodb_table_cis_results)
-            items = []
-            response = table.scan()
-            items.extend(response.get("Items", []))
-            while "LastEvaluatedKey" in response:
-                response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-                items.extend(response.get("Items", []))
-            items.sort(key=lambda x: x.get("timestamp") or x.get("evaluated_at") or "", reverse=True)
-            return {"Items": items, "LastEvaluatedKey": None}
+            kwargs = {"Limit": limit}
+            if exclusive_start_key:
+                kwargs["ExclusiveStartKey"] = exclusive_start_key
+            response = table.scan(**kwargs)
+            return {
+                "Items": response.get("Items", []),
+                "LastEvaluatedKey": response.get("LastEvaluatedKey"),
+            }
         except (BotoCoreError, ClientError, Exception) as exc:
             logger.debug(f"DynamoDB unavailable locally, scanning local SQLite store: {exc}")
             return local_db.scan_all_cis_results(limit, exclusive_start_key)
 
     table = _resource().Table(settings.dynamodb_table_cis_results)
-    items = []
-    response = table.scan()
-    items.extend(response.get("Items", []))
-    while "LastEvaluatedKey" in response:
-        response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-        items.extend(response.get("Items", []))
-    items.sort(key=lambda x: x.get("timestamp") or x.get("evaluated_at") or "", reverse=True)
-    return {"Items": items, "LastEvaluatedKey": None}
+    kwargs = {"Limit": limit}
+    if exclusive_start_key:
+        kwargs["ExclusiveStartKey"] = exclusive_start_key
+    response = table.scan(**kwargs)
+    return {
+        "Items": response.get("Items", []),
+        "LastEvaluatedKey": response.get("LastEvaluatedKey"),
+    }
+
 
 
 

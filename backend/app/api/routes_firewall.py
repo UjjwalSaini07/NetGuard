@@ -14,26 +14,42 @@ def list_firewall_rules(
     action: str | None = Query(default=None, pattern="^(permit|deny)$"),
     scan_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
+    next_token: str | None = Query(default=None),
 ):
     try:
-        if scan_id:
-            items = dynamo_client.query_firewall_rules_by_scan(scan_id)
-        else:
-            response = dynamo_client.scan_all_firewall_rules(limit, None)
-            raw_items = response.get("Items", [])
-            target_scan_id = raw_items[0].get("scan_id") if raw_items and raw_items[0].get("scan_id") else None
-            if target_scan_id:
-                items = [item for item in raw_items if item.get("scan_id") == target_scan_id]
-            else:
-                items = raw_items[:limit]
+        target_scan_id = scan_id or dynamo_client.get_latest_scan_id()
+        if target_scan_id:
+            items = dynamo_client.query_firewall_rules_by_scan(target_scan_id)
+            if action:
+                items = [item for item in items if item.get("action") == action]
+            offset = int(next_token) if next_token and next_token.isdigit() else 0
+            page_items = items[offset : offset + limit]
+            new_next = str(offset + limit) if offset + limit < len(items) else None
+            return {"items": page_items, "next_token": new_next}
+
+        exclusive_start_key = None
+        if next_token:
+            exclusive_start_key = {"scan_id": next_token, "offset": next_token}
+        response = dynamo_client.scan_all_firewall_rules(limit, exclusive_start_key)
+        items = response.get("Items", [])
 
         if action:
             items = [item for item in items if item.get("action") == action]
 
-        return {"items": items}
+        last_key = response.get("LastEvaluatedKey")
+        token_out = None
+        if last_key:
+            if isinstance(last_key, dict):
+                token_out = last_key.get("offset") or last_key.get("scan_id") or last_key.get("rule_id")
+            else:
+                token_out = str(last_key)
+
+        return {"items": items, "next_token": token_out}
     except (BotoCoreError, ClientError) as exc:
         logger.error(f"dynamodb error listing firewall rules: {exc}")
         raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": str(exc)}) from exc
+
+
 
 
 

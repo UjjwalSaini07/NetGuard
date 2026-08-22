@@ -16,30 +16,38 @@ def list_devices(
     scan_id: str | None = Query(default=None),
 ):
     try:
-        if scan_id:
-            items = dynamo_client.query_devices_by_scan(scan_id)
-            items.sort(key=lambda x: x.get("discovered_at") or x.get("timestamp") or "", reverse=True)
-            return {"items": items, "next_token": None}
-
-        exclusive_start_key = {"scan_id": next_token} if next_token else None
-        response = dynamo_client.scan_all_devices(limit, exclusive_start_key)
-        raw_items = response.get("Items", [])
-        raw_items.sort(key=lambda x: x.get("discovered_at") or x.get("timestamp") or "", reverse=True)
-
-        target_scan_id = raw_items[0].get("scan_id") if raw_items and raw_items[0].get("scan_id") else None
+        target_scan_id = scan_id or dynamo_client.get_latest_scan_id()
         if target_scan_id:
-            items = [item for item in raw_items if item.get("scan_id") == target_scan_id]
-        else:
-            items = raw_items[:limit]
+            items = dynamo_client.query_devices_by_scan(target_scan_id)
+            items.sort(key=lambda x: x.get("discovered_at") or x.get("timestamp") or "", reverse=True)
+            offset = int(next_token) if next_token and next_token.isdigit() else 0
+            page_items = items[offset : offset + limit]
+            new_next = str(offset + limit) if offset + limit < len(items) else None
+            return {"items": page_items, "next_token": new_next}
+
+        exclusive_start_key = None
+        if next_token:
+            exclusive_start_key = {"scan_id": next_token, "offset": next_token}
+        response = dynamo_client.scan_all_devices(limit, exclusive_start_key)
+        items = response.get("Items", [])
 
         last_key = response.get("LastEvaluatedKey")
+        token_out = None
+        if last_key:
+            if isinstance(last_key, dict):
+                token_out = last_key.get("offset") or last_key.get("scan_id") or last_key.get("device_id")
+            else:
+                token_out = str(last_key)
+
         return {
             "items": items,
-            "next_token": last_key.get("scan_id") if last_key else None,
+            "next_token": token_out,
         }
     except (BotoCoreError, ClientError) as exc:
         logger.error(f"dynamodb error listing devices: {exc}")
         raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": str(exc)}) from exc
+
+
 
 
 
