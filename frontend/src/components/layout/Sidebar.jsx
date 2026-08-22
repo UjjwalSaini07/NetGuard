@@ -16,8 +16,9 @@ const links = [
 ]
 
 export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }) {
-  const { isOnline, dynamodb, runtimeMode, checking } = useHealthCheck()
+  const { isOnline, dynamodb, runtimeMode, awsRegion, checking } = useHealthCheck()
   const isDbReady = isOnline && dynamodb === 'ok'
+
 
   return (
     <>
@@ -119,13 +120,14 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile = () => {} }
               )}
             </div>
             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 mono">
-              <span>{runtimeMode === 'lambda' ? 'AWS Cloud' : 'Local / Demo'}</span>
+              <span>{runtimeMode === 'lambda' ? `Region: ${awsRegion || 'us-east-1'}` : `Region: ${awsRegion || 'us-east-1'} (Local)`}</span>
               <span className={isDbReady ? 'text-slate-700 font-semibold' : 'text-rose-600 font-semibold'}>
                 {checking ? 'Probing...' : isDbReady ? 'Ready' : 'Disconnected'}
               </span>
             </div>
           </div>
         </div>
+
 
       </aside>
     </>

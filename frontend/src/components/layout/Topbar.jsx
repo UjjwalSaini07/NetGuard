@@ -6,6 +6,7 @@ import useHealthCheck from '../../hooks/useHealthCheck.js'
 export default function Topbar({ lastScanTimestamp, onScanComplete, onToggleMobile = () => {} }) {
   const [open, setOpen] = useState(false)
   const { isOnline, latency, checking } = useHealthCheck()
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
   const formatTimestamp = (ts) => {
     if (!ts) return 'No scan executed yet'
@@ -60,7 +61,7 @@ export default function Topbar({ lastScanTimestamp, onScanComplete, onToggleMobi
         <div className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-xs text-slate-600 font-mono lg:flex">
           <HiServer className="h-4 w-4 text-slate-400" />
           <span>
-            Host: <span className="text-slate-800 font-medium">http://localhost:8000</span>{' '}
+            Host: <span className="text-slate-800 font-medium" title={apiBaseUrl}>{apiBaseUrl}</span>{' '}
             {isOnline ? (
               <span className="text-emerald-700 font-semibold">({latency ? `${latency}ms` : 'Active'})</span>
             ) : checking ? (
@@ -70,6 +71,7 @@ export default function Topbar({ lastScanTimestamp, onScanComplete, onToggleMobi
             )}
           </span>
         </div>
+
 
         <button
           onClick={() => setOpen(true)}

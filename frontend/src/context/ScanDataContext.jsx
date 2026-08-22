@@ -16,6 +16,7 @@ export function ScanDataProvider({ children }) {
     isOnline: false,
     dynamodb: 'checking',
     runtimeMode: 'local',
+    awsRegion: import.meta.env.VITE_AWS_REGION || 'us-east-1',
     latency: null,
     checking: true,
     lastChecked: null
@@ -32,6 +33,7 @@ export function ScanDataProvider({ children }) {
           isOnline: true,
           dynamodb: response.data.dynamodb || 'ok',
           runtimeMode: response.data.runtime_mode || 'local',
+          awsRegion: response.data.aws_region || import.meta.env.VITE_AWS_REGION || 'us-east-1',
           latency: Math.round(performance.now() - start),
           checking: false,
           lastChecked: Date.now()
@@ -41,6 +43,7 @@ export function ScanDataProvider({ children }) {
           isOnline: false,
           dynamodb: 'error',
           runtimeMode: 'unknown',
+          awsRegion: import.meta.env.VITE_AWS_REGION || 'us-east-1',
           latency: null,
           checking: false,
           lastChecked: Date.now()
@@ -51,12 +54,14 @@ export function ScanDataProvider({ children }) {
         isOnline: false,
         dynamodb: 'error',
         runtimeMode: 'unknown',
+        awsRegion: import.meta.env.VITE_AWS_REGION || 'us-east-1',
         latency: null,
         checking: false,
         lastChecked: Date.now()
       })
     }
   }, [])
+
 
   useEffect(() => {
     let timerId
