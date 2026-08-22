@@ -17,7 +17,32 @@ import { FiRadio } from 'react-icons/fi'
 import client from '../../api/client.js'
 import ErrorBanner from '../common/ErrorBanner.jsx'
 
-const TARGET_PATTERN = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?(\s*,\s*(\d{1,3}\.){3}\d{1,3})*$/
+function isValidIpv4(ip) {
+  const parts = ip.split('.')
+  if (parts.length !== 4) return false
+  return parts.every((p) => {
+    if (!/^\d{1,3}$/.test(p)) return false
+    const num = Number(p)
+    return num >= 0 && num <= 255 && (p === '0' || !p.startsWith('0'))
+  })
+}
+
+function isValidTarget(targetStr) {
+  const trimmed = targetStr.trim()
+  if (!trimmed) return false
+
+  if (trimmed.includes('/')) {
+    const [ip, prefix, ...rest] = trimmed.split('/')
+    if (rest.length > 0 || !isValidIpv4(ip)) return false
+    if (!/^\d{1,2}$/.test(prefix)) return false
+    const mask = Number(prefix)
+    return Number.isInteger(mask) && mask >= 0 && mask <= 32
+  }
+
+  const items = trimmed.split(',').map((s) => s.trim()).filter(Boolean)
+  if (items.length === 0) return false
+  return items.every(isValidIpv4)
+}
 
 const PRESETS = [
   { label: 'Localhost', target: '127.0.0.1', icon: HiComputerDesktop, est: '~2-4s' },
@@ -59,10 +84,11 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
     setValidationError(null)
     setApiError(null)
 
-    if (!TARGET_PATTERN.test(target.trim())) {
-      setValidationError('Please enter a valid CIDR notation (e.g. 192.168.1.0/24) or comma-separated IP list (e.g. 127.0.0.1, 192.168.1.1).')
+    if (!isValidTarget(target)) {
+      setValidationError('Please enter a valid CIDR notation (e.g. 192.168.1.0/24) or comma-separated IPv4 list (e.g. 127.0.0.1, 192.168.1.1).')
       return
     }
+
 
     setSubmitting(true)
     try {
