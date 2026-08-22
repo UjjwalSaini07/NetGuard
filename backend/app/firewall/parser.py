@@ -4,10 +4,18 @@ from app.firewall import cisco_parser
 from app.schemas.firewall_rule import FirewallRule
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "sample_configs" / "sample_cisco_ios.cfg"
+HARDENED_CONFIG_PATH = Path(__file__).parent / "sample_configs" / "hardened_cisco_ios.cfg"
 
 
 def load_config_text(config_path: str | None) -> str:
-    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    if not config_path:
+        path = DEFAULT_CONFIG_PATH
+    elif config_path in ("hardened", "hardened_cisco_ios.cfg", "hardened_cisco_ios"):
+        path = HARDENED_CONFIG_PATH
+    elif config_path in ("legacy", "sample_cisco_ios.cfg", "sample_cisco_ios", "default"):
+        path = DEFAULT_CONFIG_PATH
+    else:
+        path = Path(config_path)
     return path.read_text()
 
 
@@ -25,3 +33,4 @@ def parse_firewall_context(config_path: str | None = None) -> dict:
         "has_ntp_server": cisco_parser.has_ntp_server(lines),
         "has_login_banner": cisco_parser.has_login_banner(lines),
     }
+

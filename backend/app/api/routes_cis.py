@@ -22,6 +22,8 @@ def list_cis_results(
             response = dynamo_client.scan_all_cis_results(limit, None)
             items = response.get("Items", [])
 
+        items.sort(key=lambda x: x.get("timestamp") or x.get("evaluated_at") or "", reverse=True)
+
         if status:
             items = [item for item in items if item.get("status") == status]
 
@@ -31,3 +33,4 @@ def list_cis_results(
     except (BotoCoreError, ClientError) as exc:
         logger.error(f"dynamodb error listing cis results: {exc}")
         raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": str(exc)}) from exc
+

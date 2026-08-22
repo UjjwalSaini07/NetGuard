@@ -1,4 +1,4 @@
-﻿import json
+import json
 import sqlite3
 from pathlib import Path
 
@@ -103,7 +103,7 @@ def query_cis_results_by_scan(scan_id: str) -> list[dict]:
 def scan_all_devices(limit: int, exclusive_start_key: dict | None = None) -> dict:
     init_db()
     with _get_connection() as conn:
-        cursor = conn.execute("SELECT item_json FROM devices LIMIT ?", (limit,))
+        cursor = conn.execute("SELECT item_json FROM devices ORDER BY rowid DESC LIMIT ?", (limit,))
         items = [json.loads(row["item_json"]) for row in cursor.fetchall()]
         return {"Items": items, "LastEvaluatedKey": None}
 
@@ -111,7 +111,7 @@ def scan_all_devices(limit: int, exclusive_start_key: dict | None = None) -> dic
 def scan_all_firewall_rules(limit: int, exclusive_start_key: dict | None = None) -> dict:
     init_db()
     with _get_connection() as conn:
-        cursor = conn.execute("SELECT item_json FROM firewall_rules LIMIT ?", (limit,))
+        cursor = conn.execute("SELECT item_json FROM firewall_rules ORDER BY rowid DESC LIMIT ?", (limit,))
         items = [json.loads(row["item_json"]) for row in cursor.fetchall()]
         return {"Items": items, "LastEvaluatedKey": None}
 
@@ -119,6 +119,7 @@ def scan_all_firewall_rules(limit: int, exclusive_start_key: dict | None = None)
 def scan_all_cis_results(limit: int, exclusive_start_key: dict | None = None) -> dict:
     init_db()
     with _get_connection() as conn:
-        cursor = conn.execute("SELECT item_json FROM cis_results LIMIT ?", (limit,))
+        cursor = conn.execute("SELECT item_json FROM cis_results ORDER BY rowid DESC LIMIT ?", (limit,))
         items = [json.loads(row["item_json"]) for row in cursor.fetchall()]
         return {"Items": items, "LastEvaluatedKey": None}
+
