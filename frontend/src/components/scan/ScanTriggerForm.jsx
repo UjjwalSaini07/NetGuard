@@ -367,7 +367,7 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
                     <span className="truncate whitespace-nowrap">CIS Hardened</span>
                   </div>
                   <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                    100% Pass
+                    Baseline: Hardened
                   </span>
                 </button>
 
@@ -385,9 +385,10 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
                     <span className="truncate whitespace-nowrap">Legacy Baseline</span>
                   </div>
                   <span className="text-[10px] font-bold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                    Audit Gaps
+                    Baseline: Legacy
                   </span>
                 </button>
+
               </div>
             </div>
 
