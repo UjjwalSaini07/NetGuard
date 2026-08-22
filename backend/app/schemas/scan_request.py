@@ -1,3 +1,4 @@
+import ipaddress
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -12,7 +13,23 @@ class ScanRequest(BaseModel):
     def target_not_blank(cls, value: str) -> str:
         if not value or not value.strip():
             raise ValueError("target must not be blank")
-        return value.strip()
+        cleaned = value.strip()
+        if "/" in cleaned:
+            try:
+                ipaddress.ip_network(cleaned, strict=False)
+            except ValueError as exc:
+                raise ValueError(f"invalid CIDR target: {cleaned}") from exc
+        else:
+            parts = [part.strip() for part in cleaned.split(",") if part.strip()]
+            if not parts:
+                raise ValueError("target list cannot be empty")
+            for part in parts:
+                try:
+                    ipaddress.ip_address(part)
+                except ValueError as exc:
+                    raise ValueError(f"invalid IP address in target: {part}") from exc
+        return cleaned
+
 
     @field_validator("firewall_config_path")
     @classmethod

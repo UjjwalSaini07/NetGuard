@@ -11,6 +11,23 @@ def test_expand_targets_ip_list():
     assert hosts == ["10.0.0.1", "10.0.0.2", "10.0.0.3"]
 
 
+def test_expand_targets_invalid_ip():
+    import pytest
+
+    with pytest.raises(ValueError, match="invalid IP address"):
+        host_discovery.expand_targets("999.999.999.999")
+    with pytest.raises(ValueError, match="invalid IP address"):
+        host_discovery.expand_targets("192.168.1.1, 300.1.1.1")
+
+
+def test_expand_targets_invalid_cidr():
+    import pytest
+
+    with pytest.raises(ValueError, match="invalid CIDR"):
+        host_discovery.expand_targets("192.168.1.0/35")
+
+
+
 def test_discover_hosts_empty_subnet_returns_empty(monkeypatch):
     monkeypatch.setattr(host_discovery, "_tcp_probe_reachable", lambda ip, timeout: False)
     monkeypatch.setattr(host_discovery, "_icmp_probe_reachable", lambda ip, timeout: False)

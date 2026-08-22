@@ -21,9 +21,24 @@ class DiscoveredHost:
 def expand_targets(target: str) -> list[str]:
     target = target.strip()
     if "/" in target:
-        network = ipaddress.ip_network(target, strict=False)
-        return [str(ip) for ip in network.hosts()]
-    return [part.strip() for part in target.split(",") if part.strip()]
+        try:
+            network = ipaddress.ip_network(target, strict=False)
+            hosts = [str(ip) for ip in network.hosts()]
+            return hosts if hosts else [str(network.network_address)]
+        except ValueError as exc:
+            raise ValueError(f"invalid CIDR target: {target}") from exc
+
+    parts = [part.strip() for part in target.split(",") if part.strip()]
+    if not parts:
+        raise ValueError("target list cannot be empty")
+    validated = []
+    for part in parts:
+        try:
+            validated.append(str(ipaddress.ip_address(part)))
+        except ValueError as exc:
+            raise ValueError(f"invalid IP address in target: {part}") from exc
+    return validated
+
 
 
 def _tcp_probe_reachable(ip_address: str, timeout: float) -> bool:
