@@ -1,22 +1,31 @@
 import ipaddress
 
 from app.benchmarks.base_check import BaseCheck, CisCheckOutcome
+from app.config import get_settings
 from app.schemas.device import Device
 from app.schemas.firewall_rule import FirewallRule
 
-MANAGEMENT_SUBNET = ipaddress.ip_network("10.10.0.0/24")
 
-
-def _source_within_management_subnet(source: str) -> bool:
+def _source_within_management_subnet(source: str, mgmt_subnet: ipaddress.IPv4Network | ipaddress.IPv6Network, wildcard: str | None = None) -> bool:
     if source in ("any", "0.0.0.0/0"):
         return False
     try:
         if "/" in source:
             network = ipaddress.ip_network(source, strict=False)
-            return network.subnet_of(MANAGEMENT_SUBNET) or network == MANAGEMENT_SUBNET
-        return ipaddress.ip_address(source) in MANAGEMENT_SUBNET
+            return network.subnet_of(mgmt_subnet) or network == mgmt_subnet
+        if wildcard:
+            try:
+                wildcard_octets = [int(o) for o in wildcard.split(".")]
+                netmask_octets = [255 - o for o in wildcard_octets]
+                netmask = ".".join(str(o) for o in netmask_octets)
+                network = ipaddress.ip_network(f"{source}/{netmask}", strict=False)
+                return network.subnet_of(mgmt_subnet) or network == mgmt_subnet
+            except Exception:
+                pass
+        return ipaddress.ip_address(source) in mgmt_subnet
     except ValueError:
         return False
+
 
 
 class SshOnlyMgmtCheck(BaseCheck):
@@ -27,6 +36,11 @@ class SshOnlyMgmtCheck(BaseCheck):
     def run(self, devices: list[Device], firewall_rules: list[FirewallRule], firewall_context: dict) -> CisCheckOutcome:
         affected: list[str] = []
 
+        try:
+            mgmt_subnet = ipaddress.ip_network(get_settings().management_subnet, strict=False)
+        except Exception:
+            mgmt_subnet = ipaddress.ip_network("10.10.0.0/24")
+
         transports = firewall_context.get("line_transports", [])
         non_ssh_transports = [item for item in transports if item.lower() not in ("ssh",)]
         if non_ssh_transports:
@@ -35,8 +49,9 @@ class SshOnlyMgmtCheck(BaseCheck):
         for rule in firewall_rules:
             if rule.action != "permit" or rule.port != "22":
                 continue
-            if not _source_within_management_subnet(rule.source):
+            if not _source_within_management_subnet(rule.source, mgmt_subnet, rule.source_wildcard):
                 affected.append(f"ssh reachable outside management subnet: {rule.raw_line}")
+
 
         for device in devices:
             other_mgmt_ports = {21, 23, 3389}
@@ -51,3 +66,4 @@ class SshOnlyMgmtCheck(BaseCheck):
                 affected_items=affected,
             )
         return CisCheckOutcome(status="PASS", evidence="Remote management is SSH-only and properly restricted.")
+

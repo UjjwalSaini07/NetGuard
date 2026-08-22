@@ -14,6 +14,28 @@ class ScanRequest(BaseModel):
             raise ValueError("target must not be blank")
         return value.strip()
 
+    @field_validator("firewall_config_path")
+    @classmethod
+    def validate_firewall_config_path(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        cleaned = value.strip().lower()
+        allowed = (
+            "hardened",
+            "hardened_cisco_ios.cfg",
+            "hardened_cisco_ios",
+            "cis_hardened",
+            "legacy",
+            "sample_cisco_ios.cfg",
+            "sample_cisco_ios",
+            "sample",
+            "default",
+        )
+        if cleaned not in allowed:
+            raise ValueError(f"invalid firewall config profile: {value}")
+        return cleaned
+
+
 
 class ScanResult(BaseModel):
     scan_id: str

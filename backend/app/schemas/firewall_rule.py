@@ -13,3 +13,8 @@ class FirewallRule(BaseModel):
     action: str
     direction: str
     raw_line: str
+    sequence: int = 0
+    source_wildcard: Optional[str] = None
+    destination_wildcard: Optional[str] = None
+
+

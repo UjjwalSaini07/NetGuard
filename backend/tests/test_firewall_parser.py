@@ -49,3 +49,28 @@ def test_cisco_parser_handles_host_to_host_with_port():
     assert rules[0].source == "1.2.3.4"
     assert rules[0].destination == "5.6.7.8"
     assert rules[0].port == "443"
+
+
+def test_load_config_text_rejects_arbitrary_paths():
+    import pytest
+
+    with pytest.raises(ValueError):
+        parser.load_config_text("/etc/hostname")
+
+    with pytest.raises(ValueError):
+        parser.load_config_text("../../etc/passwd")
+
+
+def test_cisco_parser_handles_wildcard_mask_source():
+    config_text = (
+        "ip access-list extended ACL-INGRESS\n"
+        " permit tcp 10.10.0.0 0.0.0.255 host 10.10.0.1 eq 22\n"
+    )
+    rules = cisco_parser.parse(config_text)
+    assert len(rules) == 1
+    assert rules[0].source == "10.10.0.0"
+    assert rules[0].source_wildcard == "0.0.0.255"
+    assert rules[0].destination == "10.10.0.1"
+    assert rules[0].port == "22"
+
+

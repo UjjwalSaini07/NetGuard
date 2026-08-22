@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     scan_max_hosts_lambda: int = Field(default=16, alias="SCAN_MAX_HOSTS_LAMBDA")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     s3_bucket_raw_results: str = Field(default="", alias="S3_BUCKET_RAW_RESULTS")
+    management_subnet: str = Field(default="10.10.0.0/24", alias="MANAGEMENT_SUBNET")
+
 
     @property
     def port_list(self) -> list[int]:

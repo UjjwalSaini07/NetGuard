@@ -7,16 +7,30 @@ DEFAULT_CONFIG_PATH = Path(__file__).parent / "sample_configs" / "sample_cisco_i
 HARDENED_CONFIG_PATH = Path(__file__).parent / "sample_configs" / "hardened_cisco_ios.cfg"
 
 
-def load_config_text(config_path: str | None) -> str:
+ALLOWED_CONFIG_PROFILES = {
+    "hardened": HARDENED_CONFIG_PATH,
+    "hardened_cisco_ios.cfg": HARDENED_CONFIG_PATH,
+    "hardened_cisco_ios": HARDENED_CONFIG_PATH,
+    "cis_hardened": HARDENED_CONFIG_PATH,
+    "legacy": DEFAULT_CONFIG_PATH,
+    "sample_cisco_ios.cfg": DEFAULT_CONFIG_PATH,
+    "sample_cisco_ios": DEFAULT_CONFIG_PATH,
+    "sample": DEFAULT_CONFIG_PATH,
+    "default": DEFAULT_CONFIG_PATH,
+}
+
+
+def load_config_text(config_path: str | None = None) -> str:
     if not config_path:
         path = DEFAULT_CONFIG_PATH
-    elif config_path in ("hardened", "hardened_cisco_ios.cfg", "hardened_cisco_ios"):
-        path = HARDENED_CONFIG_PATH
-    elif config_path in ("legacy", "sample_cisco_ios.cfg", "sample_cisco_ios", "default"):
-        path = DEFAULT_CONFIG_PATH
     else:
-        path = Path(config_path)
-    return path.read_text()
+        normalized = config_path.strip().lower()
+        if normalized in ALLOWED_CONFIG_PROFILES:
+            path = ALLOWED_CONFIG_PROFILES[normalized]
+        else:
+            raise ValueError(f"invalid firewall config profile: {config_path}")
+    return path.read_text(encoding="utf-8")
+
 
 
 def parse_firewall_config(config_path: str | None = None) -> list[FirewallRule]:

@@ -35,6 +35,8 @@ Resources:
           SCAN_MAX_HOSTS_LAMBDA: 16
           LOG_LEVEL: !Ref LogLevel
           S3_BUCKET_RAW_RESULTS: !Ref S3BucketRawResults
+          MANAGEMENT_SUBNET: 10.10.0.0/24
+
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref DevicesTable

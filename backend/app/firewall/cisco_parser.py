@@ -12,6 +12,16 @@ NTP_SERVER_PATTERN = re.compile(r"^ntp server (\S+)")
 BANNER_LOGIN_PATTERN = re.compile(r"^banner login")
 
 
+IPV4_OCTET_PATTERN = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+
+
+def _is_dotted_quad(token: str) -> bool:
+    if not IPV4_OCTET_PATTERN.match(token):
+        return False
+    parts = token.split(".")
+    return all(0 <= int(p) <= 255 for p in parts)
+
+
 def _direction_for_acl(acl_name: str) -> str:
     lowered = acl_name.lower()
     if "in" in lowered.replace("ingress", "in-gress"):
@@ -21,43 +31,65 @@ def _direction_for_acl(acl_name: str) -> str:
     return "ingress"
 
 
-def _consume_address(tokens: list[str], start: int) -> tuple[str, int]:
-    if start < len(tokens) and tokens[start] == "host":
-        return tokens[start + 1], start + 2
-    return tokens[start], start + 1
+def _consume_address(tokens: list[str], start: int) -> tuple[str, str | None, int]:
+    if start >= len(tokens):
+        return "any", None, start
+
+    if tokens[start] == "host":
+        if start + 1 < len(tokens):
+            return tokens[start + 1], None, start + 2
+        return "any", None, start + 1
+
+    if tokens[start] in ("any", "any4"):
+        return "any", None, start + 1
+
+    addr = tokens[start]
+    wildcard = None
+    next_idx = start + 1
+
+    if _is_dotted_quad(addr):
+        if next_idx < len(tokens) and _is_dotted_quad(tokens[next_idx]) and tokens[next_idx] not in ("host", "eq", "range", "gt", "lt", "neq", "log", "established"):
+            wildcard = tokens[next_idx]
+            next_idx += 1
+
+    return addr, wildcard, next_idx
 
 
-def _parse_acl_entry_tail(action: str, protocol: str, remainder: str) -> tuple[str, str, str | None]:
+def _parse_acl_entry_tail(action: str, protocol: str, remainder: str) -> tuple[str, str | None, str, str | None, str | None]:
     tokens = remainder.split()
-    source, next_index = _consume_address(tokens, 0)
-    destination, next_index = _consume_address(tokens, next_index)
+    source, src_wildcard, next_index = _consume_address(tokens, 0)
+    destination, dst_wildcard, next_index = _consume_address(tokens, next_index)
     port = None
     if next_index < len(tokens) and tokens[next_index] == "eq":
         port = tokens[next_index + 1]
-    return source, destination, port
+    return source, src_wildcard, destination, dst_wildcard, port
 
 
 def _parse_acl_entries(lines: list[str]) -> list[FirewallRule]:
     rules: list[FirewallRule] = []
     current_acl = None
+    seq = 0
     for raw_line in lines:
         header_match = ACL_HEADER_PATTERN.match(raw_line)
         if header_match:
             current_acl = header_match.group(1)
+            seq = 0
             continue
         if current_acl is None:
             continue
         if raw_line.startswith("ip access-list") or (raw_line and not raw_line.startswith(" ") and not raw_line.startswith("!")):
             current_acl = None
+            seq = 0
             continue
         entry_match = ACL_ENTRY_ACTION_PATTERN.match(raw_line)
         if not entry_match:
             continue
         action, protocol, remainder = entry_match.groups()
         try:
-            source, destination, port = _parse_acl_entry_tail(action, protocol, remainder)
+            source, src_wildcard, destination, dst_wildcard, port = _parse_acl_entry_tail(action, protocol, remainder)
         except IndexError:
             continue
+        seq += 10
         rules.append(
             FirewallRule(
                 rule_id=str(uuid.uuid4()),
@@ -69,9 +101,14 @@ def _parse_acl_entries(lines: list[str]) -> list[FirewallRule]:
                 action=action,
                 direction=_direction_for_acl(current_acl),
                 raw_line=raw_line.strip(),
+                sequence=seq,
+                source_wildcard=src_wildcard,
+                destination_wildcard=dst_wildcard,
             )
         )
     return rules
+
+
 
 
 def _parse_snmp_communities(lines: list[str]) -> list[FirewallRule]:

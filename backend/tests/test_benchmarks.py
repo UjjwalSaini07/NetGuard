@@ -161,3 +161,65 @@ def test_all_checks_fail_against_bundled_insecure_sample_config():
     results, summary = run_all_checks([], rules, context, "sample-scan")
     assert summary["total"] == 8
     assert summary["failed"] >= 6
+
+
+def test_egress_default_deny_fails_when_permit_all_before_deny_all():
+    rule_permit = _rule(direction="egress", action="permit", source="any", destination="any", protocol="ip", sequence=10, raw_line="permit ip any any")
+    rule_deny = _rule(direction="egress", action="deny", source="any", destination="any", protocol="ip", sequence=20, raw_line="deny ip any any")
+    outcome = EgressDefaultDenyCheck().run([], [rule_permit, rule_deny], EMPTY_CONTEXT)
+    assert outcome.status == "FAIL"
+
+
+def test_egress_default_deny_passes_when_deny_all_before_specific_permits():
+    rule_deny = _rule(direction="egress", action="deny", source="any", destination="any", protocol="ip", sequence=10, raw_line="deny ip any any")
+    rule_permit = _rule(direction="egress", action="permit", source="10.10.0.1", destination="8.8.8.8", protocol="tcp", port="443", sequence=20, raw_line="permit tcp host 10.10.0.1 host 8.8.8.8 eq 443")
+    outcome = EgressDefaultDenyCheck().run([], [rule_deny, rule_permit], EMPTY_CONTEXT)
+    assert outcome.status == "PASS"
+
+
+def test_egress_default_deny_passes_when_specific_permits_before_deny_all():
+    rule_permit = _rule(direction="egress", action="permit", source="10.10.0.1", destination="8.8.8.8", protocol="tcp", port="443", sequence=10, raw_line="permit tcp host 10.10.0.1 host 8.8.8.8 eq 443")
+    rule_deny = _rule(direction="egress", action="deny", source="any", destination="any", protocol="ip", sequence=20, raw_line="deny ip any any")
+    outcome = EgressDefaultDenyCheck().run([], [rule_permit, rule_deny], EMPTY_CONTEXT)
+    assert outcome.status == "PASS"
+
+
+def test_ssh_only_mgmt_respects_custom_management_subnet(monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setenv("MANAGEMENT_SUBNET", "172.16.0.0/16")
+    get_settings.cache_clear()
+
+    rule_custom = _rule(direction="ingress", action="permit", source="172.16.1.5", port="22", raw_line="permit tcp host 172.16.1.5 host 10.10.0.1 eq 22")
+    outcome = SshOnlyMgmtCheck().run([], [rule_custom], EMPTY_CONTEXT)
+    assert outcome.status == "PASS"
+
+    get_settings.cache_clear()
+
+
+def test_ssh_only_mgmt_actually_evaluates_wildcard_masked_rule():
+    rule = _rule(
+        direction="ingress",
+        action="permit",
+        source="10.10.0.0",
+        source_wildcard="0.0.0.255",
+        destination="10.10.0.1",
+        port="22",
+        raw_line="permit tcp 10.10.0.0 0.0.0.255 host 10.10.0.1 eq 22",
+    )
+    outcome = SshOnlyMgmtCheck().run([], [rule], EMPTY_CONTEXT)
+    assert outcome.status == "PASS"
+
+    rule_outside = _rule(
+        direction="ingress",
+        action="permit",
+        source="192.168.1.0",
+        source_wildcard="0.0.0.255",
+        destination="10.10.0.1",
+        port="22",
+        raw_line="permit tcp 192.168.1.0 0.0.0.255 host 10.10.0.1 eq 22",
+    )
+    outcome_outside = SshOnlyMgmtCheck().run([], [rule_outside], EMPTY_CONTEXT)
+    assert outcome_outside.status == "FAIL"
+
+
