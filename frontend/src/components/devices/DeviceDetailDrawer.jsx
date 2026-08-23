@@ -21,7 +21,8 @@ export default function DeviceDetailDrawer({ device, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm">
-      <div className="h-full w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white p-6 shadow-2xl animate-in slide-in-from-right duration-200">
+      <div className="h-full w-full max-w-full sm:max-w-lg overflow-y-auto border-l border-slate-200 bg-white p-4 sm:p-6 shadow-2xl animate-in slide-in-from-right duration-200">
+
         <div className="mb-6 flex items-start justify-between border-b border-slate-100 pb-5">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-sm">

@@ -9,55 +9,63 @@ export default function Topbar({ lastScanTimestamp, onScanComplete, onToggleMobi
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
   const formatTimestamp = (ts) => {
-    if (!ts) return 'No scan executed yet'
+    if (!ts) return { time: 'No scan yet', date: '' }
     try {
       const date = new Date(ts)
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' (' + date.toLocaleDateString() + ')'
+      return {
+        time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        date: `(${date.toLocaleDateString()})`
+      }
     } catch {
-      return String(ts)
+      return { time: String(ts), date: '' }
     }
   }
 
+  const tsInfo = formatTimestamp(lastScanTimestamp)
+
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3.5 backdrop-blur-md md:px-8 shadow-sm">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3.5 py-2.5 sm:px-4 sm:py-3.5 backdrop-blur-md md:px-8 shadow-sm">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
         <button
           onClick={onToggleMobile}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 md:hidden"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 md:hidden"
         >
           <HiBars3 className="h-5 w-5" />
         </button>
 
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-slate-900 md:text-lg">Network Security Posture</h1>
+            <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 truncate tracking-tight">
+              Network Security Posture
+            </h1>
             {checking ? (
-              <span className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 sm:inline-flex">
+              <span className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 sm:inline-flex shrink-0">
                 <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse" />
                 Connecting...
               </span>
             ) : isOnline ? (
-              <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
+              <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 sm:inline-flex shrink-0">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Operational
               </span>
             ) : (
-              <span className="hidden items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 sm:inline-flex">
+              <span className="hidden items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 sm:inline-flex shrink-0">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                 Offline
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-            <HiClock className="h-3.5 w-3.5 text-slate-400" />
-            <span className="mono text-[11px] text-slate-500">
-              Last audit: <span className="text-slate-800 font-medium">{formatTimestamp(lastScanTimestamp)}</span>
+          <div className="flex items-center gap-1 text-slate-500 mt-0.5 min-w-0">
+            <HiClock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <span className="mono text-[10px] sm:text-[11px] text-slate-500 truncate whitespace-nowrap">
+              Last audit: <span className="text-slate-800 font-medium">{tsInfo.time}</span>
+              {tsInfo.date && <span className="hidden sm:inline ml-1 font-normal text-slate-500">{tsInfo.date}</span>}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="hidden h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-xs text-slate-600 font-mono lg:flex">
           <HiServer className="h-4 w-4 text-slate-400" />
           <span>
@@ -72,15 +80,15 @@ export default function Topbar({ lastScanTimestamp, onScanComplete, onToggleMobi
           </span>
         </div>
 
-
         <button
           onClick={() => setOpen(true)}
-          className="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:bg-indigo-700 active:scale-[0.98] sm:px-5 sm:text-sm"
+          className="flex h-9 sm:h-10 items-center gap-1.5 sm:gap-2 rounded-xl bg-indigo-600 px-3.5 sm:px-5 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:bg-indigo-700 active:scale-[0.98] sm:text-sm shrink-0 whitespace-nowrap"
         >
-          <HiBolt className="h-4 w-4" />
-          <span>Run Scan</span>
+          <HiBolt className="h-4 w-4 shrink-0" />
+          <span className="whitespace-nowrap">Run Scan</span>
         </button>
       </div>
+
 
       {open && (
         <ScanTriggerForm

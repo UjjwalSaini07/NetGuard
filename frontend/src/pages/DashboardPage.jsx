@@ -262,20 +262,21 @@ function StatCard({ label, value, sub, icon: Icon, accent, linkTo }) {
   return (
     <Link
       to={linkTo || '#'}
-      className="glass-card glass-card-hover group relative flex flex-col justify-between rounded-2xl p-5 border border-slate-200 bg-white shadow-sm"
+      className="glass-card glass-card-hover group relative flex flex-col justify-between rounded-2xl p-3.5 sm:p-5 border border-slate-200 bg-white shadow-sm"
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors">
+        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors truncate">
           {label}
         </span>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${accentClasses} transition-transform group-hover:scale-105`}>
-          <Icon className="h-5 w-5" />
+        <div className={`flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border ${accentClasses} transition-transform group-hover:scale-105 ml-1`}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
       </div>
-      <div className="mt-4">
-        <div className="text-3xl font-extrabold text-slate-900 tracking-tight">{value}</div>
-        <p className="text-[11px] text-slate-400 mt-1 font-medium">{sub}</p>
+      <div className="mt-3 sm:mt-4">
+        <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{value}</div>
+        <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 sm:mt-1 font-medium truncate">{sub}</p>
       </div>
     </Link>
+
   )
 }

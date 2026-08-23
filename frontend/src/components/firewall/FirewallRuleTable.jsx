@@ -83,8 +83,9 @@ export default function FirewallRuleTable({ rules }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+
             <button
               onClick={() => setFilter('all')}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
