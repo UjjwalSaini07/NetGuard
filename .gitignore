@@ -1,10 +1,13 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *.class
 *.db
 .venv/
 env/
+*.zip
+backend/package/
+package/
 
 # Node
 node_modules/
