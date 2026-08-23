@@ -1,153 +1,210 @@
-# NetGuard
+# NetGuard: Network Posture Scanner & CIS Benchmark Auditor
 
-NetGuard discovers devices and firewall configurations in a target environment, evaluates them against CIS Cisco IOS Benchmark recommendations, ships the results to AWS, exposes them via a REST API, and visualizes them in a React dashboard.
+[![Python Version](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18.3.1-61DAFB.svg)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.4.2-646CFF.svg)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.11-38B2AC.svg)](https://tailwindcss.com/)
+[![AWS Serverless](https://img.shields.io/badge/AWS-Lambda%20%7C%20DynamoDB%20%7C%20S3-FF9900.svg)](https://aws.amazon.com/)
+[![Tests](https://img.shields.io/badge/Tests-65%20Passing%20(100%25)-brightgreen.svg)]()
+[![CIS Benchmark](https://img.shields.io/badge/Compliance-CIS%20Cisco%20IOS%2016-orange.svg)](https://www.cisecurity.org/)
 
-## Architecture
+NetGuard is an automated network posture assessment platform and CIS Cisco IOS compliance auditing engine designed as a high-performance MVP. It discovers live network assets, probes open ports and banners, parses Cisco IOS access control lists (ACLs) and management policies, evaluates security against 8 CIS Benchmark recommendations, ships structured telemetry to AWS, and visualizes posture in a modern React dashboard.
 
+## 🌐 Live Production Deployments
+
+| Component | Platform | Live URL |
+| :--- | :--- | :--- |
+| **Frontend Dashboard** | Vercel CDN | [https://networkguardian.vercel.app/](https://networkguardian.vercel.app/) |
+| **Backend API Gateway** | AWS HTTP API v2 | [https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com](https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com) |
+| **Health Probe Endpoint** | AWS Lambda | [https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com/health](https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com/health) |
+| **Swagger API Docs** | AWS Lambda | [https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com/docs](https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com/docs) |
+
+## 📖 Complete Documentation Suite
+
+
+For detailed, deep-dive technical guides, refer to the documentation suite in the `docs/` directory:
+
+| Guide | Description |
+| :--- | :--- |
+| [01 - Architecture & System Design](docs/01_architecture_and_system_design.md) | Multi-tier topology, engine specifications, composite key schemas, and threat models. |
+| [02 - Local Development & Testing Guide](docs/02_local_development_guide.md) | Step-by-step local setup for Windows/macOS/Linux, PowerShell scripts, SQLite DDL, and test suites. |
+| [03 - AWS Cloud Production Deployment](docs/03_aws_cloud_deployment_guide.md) | Step 0 login, CLI & Web Console GUI, quick redeploy commands, Free Tier $0.00 economics. |
+| [04 - CIS Benchmarks & Compliance](docs/04_cis_benchmarks_and_compliance.md) | Full audit logic, failure criteria, Cisco IOS commands, and remediation steps for all 8 checks. |
+| [05 - REST API Reference & Data Schemas](docs/05_api_reference_and_schemas.md) | OpenAPI specification, JSON request/response payloads, authentication, and error models. |
+| [06 - Frontend Dashboard & UI](docs/06_frontend_dashboard_and_ui.md) | React 18 component breakdown, state hooks, target presets, and live timer specifications. |
+| [07 - Engineering Highlights & Case Studies](docs/07_engineering_highlights_and_case_studies.md) | Problem-solving case studies, performance optimizations, interview talking points, and key architectural moves. |
+| [08 - Dual-Mode Data Flow & Execution Guide](docs/08_data_flow_and_runtime_modes.md) | Visual step-by-step data journey, sequence diagrams, and behavioral comparison between Dev and Lambda modes. |
+
+## 🏛️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph FrontendTier ["🖥️ Frontend (React 18 + Vite + Tailwind)"]
+        UI["Tailwind Security Dashboard"]
+        Client["Axios REST Client (x-api-key)"]
+        UI --> Client
+    end
+
+    subgraph IngressTier ["🌐 Cloud Entrypoint / API Gateway"]
+        APIGW["AWS API Gateway (HTTP API v2)"]
+    end
+
+    subgraph ComputeTier ["⚡ Application & Compute Layer"]
+        Lambda["AWS Lambda Function (FastAPI + Mangum, Python 3.11)"]
+        Orchestrator["Scan Orchestrator (run_scan)"]
+        
+        subgraph EngineCluster ["Audit & Scanning Subsystems"]
+            Discovery["Host Discovery (/24 guard & ARP)"]
+            PortScan["Multi-Threaded Port Scanner (32 Workers)"]
+            Parser["Cisco IOS ACL & Policy Parser"]
+            CIS["CIS Benchmark Engine (8 Rules)"]
+        end
+    end
+
+    subgraph StorageTier ["🗄️ Persistence Layer (Dual-Mode Parity)"]
+        subgraph LocalMode ["Local Dev Engine"]
+            SQLite[("SQLite: netguard_local.db (<0.1ms)")]
+        end
+        subgraph CloudMode ["AWS Cloud Serverless Engine"]
+            DDB1[("DynamoDB: NetGuardDevices")]
+            DDB2[("DynamoDB: NetGuardFirewallRules")]
+            DDB3[("DynamoDB: NetGuardCisResults")]
+            DDB4[("DynamoDB: NetGuardScans (O(1) meta)")]
+            S3[("AWS S3: Raw JSON Backups")]
+        end
+    end
+
+    Client --> APIGW
+    APIGW --> Lambda
+    Lambda --> Orchestrator
+    Orchestrator --> Discovery
+    Orchestrator --> PortScan
+    Orchestrator --> Parser
+    Orchestrator --> CIS
+
+    Orchestrator -- "RUNTIME_MODE=local" --> SQLite
+    Orchestrator -- "RUNTIME_MODE=lambda" --> DDB1
+    Orchestrator -- "RUNTIME_MODE=lambda" --> DDB2
+    Orchestrator -- "RUNTIME_MODE=lambda" --> DDB3
+    Orchestrator -- "RUNTIME_MODE=lambda" --> DDB4
+    Orchestrator -- "RUNTIME_MODE=lambda" --> S3
 ```
-                         +-------------------------+
-                         |   React Dashboard (Vite) |
-                         |  Devices / Firewall / CIS|
-                         +-----------+--------------+
-                                     | HTTPS (x-api-key)
-                                     v
-                         +-------------------------+
-                         |   API Gateway (HTTP API) |
-                         +-----------+--------------+
-                                     v
-                         +-------------------------+
-                         |  Lambda (FastAPI+Mangum) |
-                         |  /scan /devices          |
-                         |  /firewall-rules         |
-                         |  /cis-results  /health   |
-                         +-----+---------------+----+
-                               |               |
-                 orchestrator  |               |  boto3
-                               v               v
-     +----------------------------+   +--------------------+
-     | scan_orchestrator.run_scan |   |     DynamoDB        |
-     |  1. host_discovery         |   |  Devices            |
-     |  2. port_scanner           |   |  FirewallRules      |
-     |  3. service_detector       |   |  CisResults         |
-     |  4. mac_vendor              |  |  (scan_id + sort key)|
-     |  5. cisco_parser (ACL cfg) |   +--------------------+
-     |  6. benchmarks/engine.py   |
-     |     (8 CIS checks)         |          optional
-     +----------------------------+             |
-                               \-----------------v
-                                          +-------------+
-                                          |  S3 (raw    |
-                                          |  JSON archive)|
-                                          +-------------+
-```
 
-Local development runs the same FastAPI app with `uvicorn` instead of Lambda — no code branching beyond the `RUNTIME_MODE` env var that governs scan-size limits (see below).
+## ⚡ Dual-Mode Persistence Matrix
 
-## Repository layout
+NetGuard operates seamlessly in two distinct environments without code branching:
 
-```
-netguard/
-├── backend/    FastAPI app, scanners, firewall parser, CIS benchmark engine, AWS clients, SAM template
-└── frontend/   Vite + React + Tailwind dashboard
-```
+| Feature Dimension | 🖥️ Local Dev Mode (`RUNTIME_MODE=local`) | ☁️ Production Cloud Mode (`RUNTIME_MODE=lambda`) |
+| :--- | :--- | :--- |
+| **Server Engine** | Local Uvicorn server (`localhost:8000`) | AWS API Gateway + AWS Lambda (`python3.11`) |
+| **Database** | Embedded SQLite (`netguard_local.db`) | AWS DynamoDB (4 On-Demand Tables with Pay-Per-Request) |
+| **Raw Backups** | Skipped (`"s3": "skipped"`) | Synced to AWS S3 (`"s3": "synced"`) |
+| **Scan Scope Limit** | Up to 256 hosts (`/24` subnet) | Up to 16 hosts (Strict 29s timeout guard) |
+| **AWS Credentials** | Not required (Runs 100% offline) | Handled automatically via AWS IAM Roles |
+| **Error Handling** | Detailed traceback for rapid debugging | Sanitized generic errors (OWASP compliant) |
+| **Standing Cost** | $0.00 (Runs on local machine) | $0.00 (100% within AWS Free Tier allowance) |
 
-## Backend — local setup
+## 🗄️ DynamoDB Table Schemas
 
-```bash
+NetGuard uses a multi-table composite key schema that guarantees thread-safety and eliminates write collisions:
+
+| Table Name | Partition Key (HASH) | Sort Key (RANGE) | Billing Mode | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| **`NetGuardDevices`** | `scan_id` (String) | `device_id` (String) | Pay-Per-Request | Stores discovered hosts, open ports, banners, and MAC vendors. |
+| **`NetGuardFirewallRules`** | `scan_id` (String) | `rule_id` (String) | Pay-Per-Request | Stores parsed Cisco IOS ACL rules and SNMP policies. |
+| **`NetGuardCisResults`** | `scan_id` (String) | `check_id` (String) | Pay-Per-Request | Stores the 8 CIS benchmark evaluations (PASS/FAIL & evidence). |
+| **`NetGuardScans`** | `entity_type` (String) | `created_at` (String) | Pay-Per-Request | Reverse-indexed metadata for instant $O(1)$ latest-scan resolution. |
+
+## 🚀 Local Quickstart (Dev Mode)
+
+### 1. Backend Setup
+
+You can start the backend using either the automated PowerShell script (Windows) or standard terminal commands (All OS):
+
+#### Option A: Via PowerShell Script (Windows — Fastest)
+```powershell
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
+.\run_local.ps1
+```
+
+#### Option B: Via Standard CLI (Windows, macOS, Linux)
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-# edit .env — set NETGUARD_API_KEY to any value you like locally
-./run_local.sh
 ```
 
-This starts `uvicorn app.main:app --reload --port 8000`. Interactive API docs are at `http://localhost:8000/docs`.
-
-Run the test suite:
-
-```bash
-pytest
+Create `.env` from template:
+```powershell
+Copy-Item .env.example .env
 ```
 
-The suite covers: host discovery edge cases (empty subnet, all-unreachable, thread-safety of the `ThreadPoolExecutor` path), firewall parsing correctness against the bundled sample Cisco IOS config, all 8 CIS checks firing PASS **and** FAIL on crafted fixtures, API route status codes and `x-api-key` auth rejection, and the `local` vs `lambda` scan-size limiting behavior of `POST /scan`.
+Start the backend:
+```powershell
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+* **Swagger UI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
 
-## Frontend — local setup
+Run the test suite (65 passing unit tests):
+```powershell
+python -m pytest tests/ -v
+```
 
-```bash
+### 2. Frontend Setup
+
+```powershell
 cd frontend
-npm install
-cp .env.example .env
-# edit .env — VITE_API_BASE_URL and VITE_API_KEY must match the backend
-npm run dev
+pnpm install
+Copy-Item .env.example .env
+pnpm dev
 ```
+* **Dashboard URL**: [http://localhost:5173](http://localhost:5173)
 
-Vite serves the dashboard on `http://localhost:5173`.
+## ☁️ AWS Cloud Production Deployment
 
-## Deploying to AWS
+NetGuard is designed to deploy to AWS as a 100% serverless application with **$0.00 monthly standing cost (100% Free Tier compliant)**.
 
-Requires the AWS CLI and AWS SAM CLI configured with credentials that can create Lambda, API Gateway, IAM roles, and DynamoDB tables.
+For the complete, step-by-step production deployment guide (including Step 0 IAM user creation, CLI login, AWS Web Console GUI instructions, Python 3.11 Linux packaging, and API Gateway integration), refer to the dedicated guide:
 
-```bash
-cd backend
-export NETGUARD_API_KEY="a-strong-random-value"
-export AWS_REGION="us-east-1"
-./deploy.sh
-```
+👉 **[Read the Full AWS Cloud Deployment Guide (docs/03_aws_cloud_deployment_guide.md)](docs/03_aws_cloud_deployment_guide.md)**
 
-`deploy.sh` runs `sam build` then `sam deploy --guided`, which walks through stack name, region, and confirmation prompts once and remembers them in `samconfig.toml` for subsequent deploys. No manual console steps are required beyond those prompts.
+### Quick Summary of Cloud Infrastructure:
+* **AWS Lambda**: Serverless execution using FastAPI + Mangum (`NetGuardScanner`, Python 3.11).
+* **AWS DynamoDB**: 4 On-Demand tables (`NetGuardDevices`, `NetGuardFirewallRules`, `NetGuardCisResults`, `NetGuardScans`).
+* **AWS S3**: Private encrypted audit backup bucket (`netguard-raw-results-<account_id>`).
+* **AWS API Gateway**: HTTP API v2 integration providing global HTTPS endpoints.
 
-`template.yaml` provisions:
-- One Lambda function (`app.lambda_handler.handler`, `RUNTIME_MODE=lambda`) behind an API Gateway HTTP API with proxy integration
-- Three DynamoDB tables, all on-demand billing
+### Live Production Endpoints:
+* **Live API Endpoint**: `https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com`
+* **Health Probe**: `https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com/health`
+* **Swagger API Docs**: `https://zrr4hr2xd2.execute-api.us-east-1.amazonaws.com/docs`
+* **Deployed Dashboard**: `https://networkguardian.vercel.app/`
 
-### DynamoDB schema — why composite keys
+## 🛡️ CIS Cisco IOS 16 Benchmark Mappings
 
-| Table | Partition key | Sort key | Reasoning |
-|---|---|---|---|
-| `NetGuardDevices` | `scan_id` | `device_id` | A single scan discovers many devices; each must be independently addressable within that scan without overwriting siblings. |
-| `NetGuardFirewallRules` | `scan_id` | `rule_id` | Same reasoning — many parsed ACL entries per scan. |
-| `NetGuardCisResults` | `scan_id` | `check_id` | Many checks per scan. `check_id` is stable across scans (e.g. `check_ssh_only_mgmt`), which also makes "how did check X trend across scans" a straightforward future query via a GSI on `check_id`. |
 
-A bare `id`/`scan_id`-only key would let a second device/rule/check from the same scan silently overwrite the first — the composite key is what makes multi-item persistence per scan correct.
+| Check ID | Description | CIS Recommendation |
+| :--- | :--- | :--- |
+| `check_insecure_mgmt_protocols` | Flags Telnet, FTP, HTTP, and SNMPv1/v2c | Recommendation 2.3.1 |
+| `check_ssh_only_mgmt` | Enforces SSH-only management restricted to management subnets | Recommendation 2.3.5 |
+| `check_weak_snmp_community` | Flags `public` or `private` SNMP community strings | Recommendation 2.4.1 |
+| `check_open_ingress_sensitive_ports` | Flags ingress permits from `any` to ports 22, 23, 3389, 445, 3306, 5432 | Recommendation 2.2.3 |
+| `check_egress_default_deny` | Requires explicit default-deny (`deny ip any any`) rule on egress ACLs | Recommendation 2.2.6 |
+| `check_remote_syslog_enabled` | Requires configured `logging host <ip>` remote syslog collector | Recommendation 3.1.1 |
+| `check_no_default_credentials_banner` | Requires non-empty `banner login` block | Recommendation 1.1.7 |
+| `check_ntp_configured` | Requires configured `ntp server <ip>` time synchronization | Recommendation 3.2.1 |
 
-## CIS Cisco IOS Benchmark mapping
+## 👨‍💻 Author & Maintainer
 
-Every check maps to one CIS Cisco IOS Benchmark recommendation area, stored as a class attribute (`cis_reference`) on the check itself, not a comment:
+* **Author**: Ujjwal Saini ([@UjjwalSaini07](https://github.com/UjjwalSaini07))
+* **Portfolio**: [https://ujjwalsaini.vercel.app/](https://ujjwalsaini.vercel.app/)
+* **LinkedIn**: [linkedin.com/in/ujjwalsaini07](https://linkedin.com/in/ujjwalsaini07)
+* **Email**: [ujjwalsaini0007+netguard@gmail.com](mailto:ujjwalsaini0007+netguard@gmail.com)
 
-| Check | Fails when | CIS reference |
-|---|---|---|
-| `check_insecure_mgmt_protocols` | Telnet/FTP/HTTP/SNMPv1-v2c open or permitted | Recommendation 2.3.1 |
-| `check_ssh_only_mgmt` | Any non-SSH management transport, or SSH reachable outside the management subnet | Recommendation 2.3.5 |
-| `check_weak_snmp_community` | SNMP community string is `public`/`private` | Recommendation 2.4.1 |
-| `check_open_ingress_sensitive_ports` | Ingress ACL permits `any` to 22/23/3389/445/3306/5432 | Recommendation 2.2.3 |
-| `check_egress_default_deny` | No explicit default-deny egress rule | Recommendation 2.2.6 |
-| `check_remote_syslog_enabled` | No `logging host <ip>` configured | Recommendation 3.1.1 |
-| `check_no_default_credentials_banner` | No `banner login` block | Recommendation 1.1.7 |
-| `check_ntp_configured` | No `ntp server` configured | Recommendation 3.2.1 |
+## 📄 License
+This project is licensed under the Mozilla Public License Version 2.0 (MPL-2.0) — see the [LICENSE](LICENSE) file for details.
 
-The bundled `app/firewall/sample_configs/sample_cisco_ios.cfg` is deliberately insecure — it trips all 8 checks — so a fresh scan against the default sample demonstrates every FAIL path without any additional setup.
 
-## Design decision: local-synchronous vs Lambda-bounded scanning
-
-`POST /scan` runs the same synchronous orchestrator in both modes, but `RUNTIME_MODE` changes the size ceiling:
-
-- **`local`** (default for `run_local.sh`): bounded only by `SCAN_MAX_HOSTS` (default 254 — a full `/24`), since a local `uvicorn` process has no API Gateway timeout.
-- **`lambda`**: API Gateway HTTP API integrations time out at 29 seconds and Lambda itself caps at 15 minutes, so a full subnet sweep is unsafe to run synchronously inside a single invocation. The route instead validates the target against `SCAN_MAX_HOSTS_LAMBDA` (default 16) up front and returns `422` with a clear message if the target is too large, rather than discovering the whole range and then giving up partway through.
-
-**Out of scope for this MVP, left as a follow-up:** an async pattern where API Gateway → Lambda enqueues to SQS → a longer-running worker Lambda executes the full scan → results land in DynamoDB → the frontend polls `/cis-results` or a future `/scan-status/{scan_id}` endpoint. The orchestrator (`scan_orchestrator.run_scan`) is already decoupled from the route handler specifically so this is a drop-in follow-up rather than a rewrite — the route would enqueue instead of calling `run_scan` directly, and a second worker Lambda would import the same `run_scan` function unchanged.
-
-## Demo script
-
-Talking points for walking through NetGuard end-to-end:
-
-1. **Discovery logic + non-responsive host handling** — `host_discovery.py` expands a CIDR or IP list, probes each candidate with a threaded TCP connect attempt against a small probe-port set, and falls back to an OS ping only if all TCP probes fail. Every probe is wrapped so a single bad host (firewalled, filtered, DNS failure) is logged at debug level and excluded — it never raises out of the thread pool and never aborts the rest of the sweep.
-2. **Benchmark checks and evaluation method** — each of the 8 checks is a small class implementing `BaseCheck.run(devices, firewall_rules, firewall_context) -> CisCheckOutcome`, returning PASS/FAIL, human-readable evidence, and the specific offending lines/ports as `affected_items`. The engine runs a static, explicit registry (not filesystem reflection) so the check list is predictable and testable in isolation.
-3. **AWS data flow** — `scan_orchestrator.run_scan` is the single entrypoint: discovery → port scan → service/vendor enrichment → firewall parsing → benchmark engine → three DynamoDB writes (composite `scan_id` + sort key) → optional S3 raw-JSON archive → full JSON result returned to the caller.
-4. **Frontend walkthrough** — Dashboard for the at-a-glance summary, Devices for per-host detail (click a row for the drawer), Firewall Rules with permit/deny filtering, CIS Results with PASS/FAIL evidence per check. "Run Scan" in the top bar validates the target client-side, posts to `/scan`, and refetches all three data hooks on completion.
-5. **Design decisions, challenges, improvements** — the local-vs-Lambda scan-size split (above); choosing one firewall source format (Cisco IOS) over building two half-finished parsers; a static check registry over dynamic discovery for predictability; the async/SQS path as the natural next step once scan targets need to exceed API Gateway's timeout.
-
-## Environment variables
-
-All documented in `backend/.env.example` and `frontend/.env.example`. Nothing is hardcoded — IPs, keys, table names, and API URLs are all environment-driven on both sides.
