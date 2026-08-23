@@ -5,9 +5,15 @@ from app.schemas.firewall_rule import FirewallRule
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "sample_configs" / "sample_cisco_ios.cfg"
 HARDENED_CONFIG_PATH = Path(__file__).parent / "sample_configs" / "hardened_cisco_ios.cfg"
+ADVANCED_HARDENED_CONFIG_PATH = Path(__file__).parent / "sample_configs" / "advanced_hardened_cisco_ios.cfg"
 
 
 ALLOWED_CONFIG_PROFILES = {
+    "advanced": ADVANCED_HARDENED_CONFIG_PATH,
+    "advanced_hardened": ADVANCED_HARDENED_CONFIG_PATH,
+    "advanced_hardened_cisco_ios.cfg": ADVANCED_HARDENED_CONFIG_PATH,
+    "advanced_hardened_cisco_ios": ADVANCED_HARDENED_CONFIG_PATH,
+    "enterprise_hardened": ADVANCED_HARDENED_CONFIG_PATH,
     "hardened": HARDENED_CONFIG_PATH,
     "hardened_cisco_ios.cfg": HARDENED_CONFIG_PATH,
     "hardened_cisco_ios": HARDENED_CONFIG_PATH,
@@ -18,6 +24,7 @@ ALLOWED_CONFIG_PROFILES = {
     "sample": DEFAULT_CONFIG_PATH,
     "default": DEFAULT_CONFIG_PATH,
 }
+
 
 
 def load_config_text(config_path: str | None = None) -> str:

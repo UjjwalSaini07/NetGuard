@@ -185,8 +185,18 @@ export function ScanDataProvider({ children }) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         setError('Authentication Required: Please click Key Settings in the topbar to enter your NETGUARD_API_KEY.')
       } else {
-        setError(err.response?.data?.detail || err.message)
+        const detail = err.response?.data?.detail
+        if (typeof detail === 'string') {
+          setError(detail)
+        } else if (Array.isArray(detail)) {
+          setError(detail.map((d) => d.msg || d.message || JSON.stringify(d)).join(' | '))
+        } else if (detail && typeof detail === 'object') {
+          setError(detail.error || detail.message || detail.msg || JSON.stringify(detail))
+        } else {
+          setError(err.message || 'Failed to load telemetry data')
+        }
       }
+
     } finally {
       setLoading(false)
     }

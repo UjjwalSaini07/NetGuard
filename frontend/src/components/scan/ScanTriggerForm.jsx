@@ -166,12 +166,22 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
       if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
         setApiError('The scan request timed out. Wide /24 subnet sweeps probe up to 256 hosts and require additional time on local networks.')
       } else {
-        setApiError(err.response?.data?.detail || err.message)
+        const detail = err.response?.data?.detail
+        if (typeof detail === 'string') {
+          setApiError(detail)
+        } else if (Array.isArray(detail)) {
+          setApiError(detail.map((d) => d.msg || d.message || JSON.stringify(d)).join(' | '))
+        } else if (detail && typeof detail === 'object') {
+          setApiError(detail.error || detail.message || detail.msg || JSON.stringify(detail))
+        } else {
+          setApiError(err.message || 'An error occurred during scan')
+        }
       }
     } finally {
       setSubmitting(false)
     }
   }
+
 
 
 
@@ -535,21 +545,22 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
 
                 <button
                   type="button"
-                  onClick={() => setFirewallProfile('legacy')}
+                  onClick={() => setFirewallProfile('advanced')}
                   className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-                    firewallProfile === 'legacy'
-                      ? 'bg-amber-50 text-amber-800 border border-amber-300 shadow-sm'
+                    firewallProfile === 'advanced'
+                      ? 'bg-indigo-50 text-indigo-800 border border-indigo-300 shadow-sm'
                       : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <HiBolt className="h-4 w-4 text-amber-600 shrink-0" />
-                    <span className="truncate whitespace-nowrap">Legacy Baseline</span>
+                    <HiBolt className="h-4 w-4 text-indigo-600 shrink-0" />
+                    <span className="truncate whitespace-nowrap">Advanced Enterprise</span>
                   </div>
-                  <span className="text-[10px] font-bold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                    Baseline: Legacy
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                    Baseline: Advanced
                   </span>
                 </button>
+
 
               </div>
             </div>

@@ -44,6 +44,11 @@ class ScanRequest(BaseModel):
             return None
         cleaned = value.strip().lower()
         allowed = (
+            "advanced",
+            "advanced_hardened",
+            "advanced_hardened_cisco_ios.cfg",
+            "advanced_hardened_cisco_ios",
+            "enterprise_hardened",
             "hardened",
             "hardened_cisco_ios.cfg",
             "hardened_cisco_ios",
@@ -54,6 +59,7 @@ class ScanRequest(BaseModel):
             "sample",
             "default",
         )
+
         if cleaned not in allowed:
             raise ValueError(f"invalid firewall config profile: {value}")
         return cleaned
