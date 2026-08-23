@@ -15,8 +15,9 @@ import {
   HiExclamationTriangle
 } from 'react-icons/hi2'
 import { FiRadio } from 'react-icons/fi'
-import client from '../../api/client.js'
+import client, { getApiKey } from '../../api/client.js'
 import ErrorBanner from '../common/ErrorBanner.jsx'
+
 
 function isValidIpv4(ip) {
   const parts = ip.split('.')
@@ -141,20 +142,37 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
       return
     }
 
+    const currentKey = getApiKey()
+    if (!currentKey) {
+      setValidationError('Authentication Required: Please configure your NETGUARD_API_KEY using the Set Key button in the topbar.')
+      return
+    }
+
     setSubmitting(true)
+
     try {
-      const response = await client.post('/scan', {
-        target: target.trim(),
-        firewall_config_path: firewallProfile
-      })
+      const response = await client.post(
+        '/scan',
+        {
+          target: target.trim(),
+          firewall_config_path: firewallProfile
+        },
+        { timeout: 200000 }
+      )
+
       setScanResult(response.data)
       onScanComplete?.(response.data)
     } catch (err) {
-      setApiError(err.response?.data?.detail || err.message)
+      if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
+        setApiError('The scan request timed out. Wide /24 subnet sweeps probe up to 256 hosts and require additional time on local networks.')
+      } else {
+        setApiError(err.response?.data?.detail || err.message)
+      }
     } finally {
       setSubmitting(false)
     }
   }
+
 
 
   const isCidr24 = target.includes('/24')
