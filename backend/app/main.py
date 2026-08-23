@@ -27,7 +27,10 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.error(f"unhandled exception on {request.url.path}: {exc}")
-    return JSONResponse(status_code=500, content={"error": "internal_error", "detail": str(exc)})
+    curr_settings = get_settings()
+    detail = str(exc) if curr_settings.runtime_mode == "local" else "An unexpected internal error occurred."
+    return JSONResponse(status_code=500, content={"error": "internal_error", "detail": detail})
+
 
 
 @app.get("/health")

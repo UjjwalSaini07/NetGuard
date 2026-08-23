@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from botocore.exceptions import BotoCoreError, ClientError
 
 from app.aws import dynamo_client
+from app.config import get_settings
 from app.dependencies import require_api_key
 from app.logging_config import get_logger
+
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -45,7 +47,10 @@ def list_devices(
         }
     except (BotoCoreError, ClientError) as exc:
         logger.error(f"dynamodb error listing devices: {exc}")
-        raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": str(exc)}) from exc
+        settings = get_settings()
+        detail = str(exc) if settings.runtime_mode == "local" else "Database query failed while fetching devices."
+        raise HTTPException(status_code=502, detail={"error": "dynamodb_error", "detail": detail}) from exc
+
 
 
 

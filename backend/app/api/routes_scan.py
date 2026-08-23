@@ -29,4 +29,6 @@ def trigger_scan(scan_request: ScanRequest):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         logger.error(f"scan failed: {exc}")
-        raise HTTPException(status_code=502, detail={"error": "scan_failed", "detail": str(exc)}) from exc
+        detail = str(exc) if settings.runtime_mode == "local" else "Security sweep failed. Check network connectivity or service logs."
+        raise HTTPException(status_code=502, detail={"error": "scan_failed", "detail": detail}) from exc
+

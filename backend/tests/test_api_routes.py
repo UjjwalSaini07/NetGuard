@@ -366,6 +366,48 @@ def test_s3_archive_failed_when_upload_raises(monkeypatch):
     assert status == "failed"
 
 
+def test_lambda_mode_sanitizes_scan_error_response(monkeypatch):
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("RUNTIME_MODE", "lambda")
+    get_settings.cache_clear()
+
+    def _failing_scan(*args, **kwargs):
+        raise RuntimeError("Internal sensitive AWS path /secret/keys/db.key failed")
+
+    monkeypatch.setattr("app.api.routes_scan.run_scan", _failing_scan)
+
+    response = client.post("/scan", json={"target": "127.0.0.1"}, headers={"x-api-key": API_KEY})
+    assert response.status_code == 502
+    data = response.json()
+    assert "/secret/keys" not in str(data)
+    assert data["detail"]["detail"] == "Security sweep failed. Check network connectivity or service logs."
+
+    monkeypatch.setenv("RUNTIME_MODE", "local")
+    get_settings.cache_clear()
+
+
+def test_local_mode_preserves_detailed_scan_error_response(monkeypatch):
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("RUNTIME_MODE", "local")
+    get_settings.cache_clear()
+
+    def _failing_scan(*args, **kwargs):
+        raise RuntimeError("Local socket connection refused on 127.0.0.1:8080")
+
+    monkeypatch.setattr("app.api.routes_scan.run_scan", _failing_scan)
+
+    response = client.post("/scan", json={"target": "127.0.0.1"}, headers={"x-api-key": API_KEY})
+    assert response.status_code == 502
+    data = response.json()
+    assert "Local socket connection refused" in data["detail"]["detail"]
+
+
+
+
 
 
 
