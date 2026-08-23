@@ -9,7 +9,8 @@ from app.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-PROBE_PORTS = [80, 443, 22]
+PROBE_PORTS = [80, 443, 22, 53, 8080, 8443, 21, 25]
+
 
 
 @dataclass

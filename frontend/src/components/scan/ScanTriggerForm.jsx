@@ -85,12 +85,20 @@ function isValidTarget(targetStr) {
 }
 
 
-const PRESETS = [
-  { label: 'Localhost', target: '127.0.0.1', icon: HiComputerDesktop, est: '~2-4s' },
-  { label: 'Gateway Node', target: '192.168.1.1', icon: HiServer, est: '~2-4s' },
-  { label: 'Home LAN (/24)', target: '192.168.1.0/24', icon: HiGlobeAlt, est: '~25-40s' },
-  { label: 'Demo Subnet (/24)', target: '10.10.0.0/24', icon: HiSignal, est: '~25-40s' }
+const PUBLIC_PRESETS = [
+  { label: 'Cloudflare DNS', target: '1.1.1.1', icon: HiGlobeAlt, est: '~2-4s', desc: 'Public Anycast Node' },
+  { label: 'Google DNS', target: '8.8.8.8', icon: HiGlobeAlt, est: '~2-4s', desc: 'Global DNS Node' },
+  { label: 'Quad9 DNS', target: '9.9.9.9', icon: HiGlobeAlt, est: '~2-4s', desc: 'Secure Anycast' },
+  { label: 'Public DNS Pair', target: '1.1.1.1, 8.8.8.8', icon: HiSignal, est: '~4-6s', desc: 'Multi-host Probe' }
 ]
+
+const LOCAL_PRESETS = [
+  { label: 'Localhost', target: '127.0.0.1', icon: HiComputerDesktop, est: '~1-2s', desc: 'Loopback Host' },
+  { label: 'Gateway Node', target: '192.168.1.1', icon: HiServer, est: '~2-4s', desc: 'Local Router' },
+  { label: 'Home LAN Subnet', target: '192.168.1.0/24', icon: HiGlobeAlt, est: '~25-40s', desc: 'Local Network' },
+  { label: 'Lab Subnet', target: '10.10.0.0/24', icon: HiSignal, est: '~25-40s', desc: 'Demo Environment' }
+]
+
 
 const SCAN_STAGES = [
   { label: 'Subnet Discovery', desc: 'Probing IP endpoints & resolving ARP MACs', duration: 8 },
@@ -412,11 +420,14 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
 
 
             <div>
-              <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
-                Quick Target Presets:
-              </span>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {PRESETS.map((preset) => {
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-slate-700">
+                  Public Cloud Targets (AWS Lambda Testing):
+                </span>
+                <span className="text-[10px] text-indigo-600 font-medium">Accessible Worldwide</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mb-3">
+                {PUBLIC_PRESETS.map((preset) => {
                   const Icon = preset.icon
                   const isSelected = target === preset.target
                   return (
@@ -426,20 +437,52 @@ export default function ScanTriggerForm({ onClose, onScanComplete }) {
                       onClick={() => setTarget(preset.target)}
                       className={`flex items-center justify-between rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
                         isSelected
-                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-300 shadow-sm ring-1 ring-indigo-200'
                           : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <Icon className="h-4 w-4 shrink-0" />
+                        <Icon className="h-4 w-4 shrink-0 text-indigo-600" />
                         <span className="truncate">{preset.label}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 mono shrink-0 ml-1">({preset.est})</span>
+                      <span className="text-[10px] text-slate-400 mono shrink-0 ml-1">{preset.target}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-slate-500">
+                  Local LAN Targets (Offline / Dev Mode):
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">Local Machine & Wi-Fi</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {LOCAL_PRESETS.map((preset) => {
+                  const Icon = preset.icon
+                  const isSelected = target === preset.target
+                  return (
+                    <button
+                      key={preset.target}
+                      type="button"
+                      onClick={() => setTarget(preset.target)}
+                      className={`flex items-center justify-between rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
+                        isSelected
+                          ? 'bg-slate-100 text-slate-800 border border-slate-300 shadow-sm ring-1 ring-slate-200'
+                          : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Icon className="h-4 w-4 shrink-0 text-slate-500" />
+                        <span className="truncate">{preset.label}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 mono shrink-0 ml-1">{preset.target}</span>
                     </button>
                   )
                 })}
               </div>
             </div>
+
 
             <div>
               <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
