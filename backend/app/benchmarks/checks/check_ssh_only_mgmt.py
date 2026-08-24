@@ -42,8 +42,9 @@ class SshOnlyMgmtCheck(BaseCheck):
             mgmt_subnet = ipaddress.ip_network("10.10.0.0/24")
 
         transports = firewall_context.get("line_transports", [])
-        non_ssh_transports = [item for item in transports if item.lower() not in ("ssh",)]
+        non_ssh_transports = [item for item in transports if item.lower() not in ("ssh", "none")]
         if non_ssh_transports:
+
             affected.append(f"line vty transport input includes: {', '.join(sorted(set(non_ssh_transports)))}")
 
         for rule in firewall_rules:
